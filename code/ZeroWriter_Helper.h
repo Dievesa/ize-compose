@@ -112,9 +112,6 @@ void handleRoot() {
                 String preview = String(buf);
                 preview.replace("\n", " "); // 줄바꿈 제거
 
-                //String row = "<li><a href='/download?file=" + fn + "'><b>" + fn + "</b></a>";
-                //row += "<span class='pv'>" + preview + "...</span></li>";
-
                 String row = "<li><a href='/download?file=" + fn + "'><b>" + fn + "</b></a>";
 row += " <a href='/delete?file=" + fn + "' class='del' onclick=\"return confirm('정말 삭제할까요?')\">[삭제]</a>"; // 삭제 버튼 추가
 row += "<span class='pv'>" + preview + "...</span></li>";
@@ -145,7 +142,7 @@ void handleDownload() {
     server.setContentLength(fileSize);
     server.send(200, "text/plain; charset=utf-8", "");
 
-    // 3. [에러 해결 핵심] 파일을 직접 읽어서 스트리밍 전송
+    // 3. 파일을 직접 읽어서 스트리밍 전송
     uint8_t buffer[512]; // 512바이트씩 잘라서 전송
     while (file.available()) {
         int bytesRead = file.read(buffer, sizeof(buffer));
