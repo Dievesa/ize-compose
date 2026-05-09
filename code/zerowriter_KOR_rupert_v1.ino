@@ -722,7 +722,7 @@ void loop() {
     }
   } // <<< while 루프
 
-  // --- 출력부: 화면 그리기 (while문 밖) ---
+  // --- 출력부: 화면 그리기 ---
   if (needUpdate) {
     currentActiveScale = displayScale; 
     bool doFullRefresh = false;
@@ -765,7 +765,7 @@ for(int i=0; i<12; i++) {
           printMenuEntry(lbl, 10, 60 + (i*24), (menuFocusSide == 0 && leftMenuIndex == i), false);
         }
         printDualFont(isKoreanMode ? "=== 문서목록 ===" : "=== DOCUMENTS ===", 235, 30, true); 
-        // [수술 2] 계산된 최대 개수만큼만 화면에 그리고, 넘어가면 스크롤되게
+        // 계산된 최대 개수만큼만 화면에 그리고, 넘어가면 스크롤
         int maxVisibleItems = ((display.height() / displayScale) - 70) / 22;
         for (int f=1; f<=fileCount; f++) { 
             if (f > fileScrollOffset && f <= fileScrollOffset + maxVisibleItems) { 
