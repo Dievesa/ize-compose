@@ -1,4 +1,4 @@
-한글버전 DIY
+제로라이터 잉크(zerowriter ink) 한글버전 DIY
 
 글자를 치던 중 화살표로 커서 이동 시 자음 등이 따라오는 현상이 있습니다. 글자를 다 치기 전에는 반드시 스페이스바를 누른 후 이동해 주세요. 자모음 분리하여 보이게 하다보니 나온 현상인데, 글자가 다 만들어지고 나서 보이게 할지 중간에도 보이게 할지 중 선택하다보니 나온 현상입니다.
 글씨체는 [둥근모꼴](https://cactus.tistory.com/193)입니다.
@@ -27,3 +27,5 @@ https://adafruit.github.io/Adafruit_WebSerial_ESPTool/ 에 접속 후, 맨 위 �
 
 SD카드는 반드시 FAT32로 포맷되어 있어야 한다고 합니다(저도 모릅니다). 에러가 나면 포맷을 윈도우 기본 포매터가 아니라 https://www.sdcard.org/downloads/formatter/ 에서 다운받아 설치한 포매터를 사용해서 포맷해 보세요.
 보드의 라이브러리 특성상 32기가 이하의 메모리를 사용하라고 합니다.
+
+This project was built from scratch with the help of Gemini, driven by the desire for a better Korean writing environment.:-)
