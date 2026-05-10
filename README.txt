@@ -3,7 +3,7 @@ zerowriter ink korean DIY Custom Firmware
 
 글씨체는 [둥근모꼴]( https://cactus.tistory.com/193 )입니다.
 
-1. 초기화면은 SD카드에 'initial.png'로 넣으면 됩니다. 잠자기 모드에서 볼 수 있습니다. 
+1. 초기화면sleep image은 SD카드에 'initial.png'로 넣으면 됩니다. 잠자기 모드에서 볼 수 있습니다. 
 
 2. ctrl 단축키는 다음과 같습니다(ctrl shortcut).
   C : 전체 복사 copy all
