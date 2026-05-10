@@ -1,6 +1,5 @@
-제로라이터 잉크(zerowriter ink) 
-한글버전 자작 커스텀 펌웨어 
-DIY Custom Firmware
+제로라이터 잉크 한글버전 자작 커스텀 펌웨어 
+zerowriter ink korean DIY Custom Firmware
 
 글씨체는 [둥근모꼴]( https://cactus.tistory.com/193 )입니다.
 
