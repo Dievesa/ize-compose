@@ -14,7 +14,7 @@ zerowriter ink korean DIY Custom Firmware
   N : 새로 만들기 new file (Ctrl+C 상태로 Ctrl+N을 한 후 Ctrl+V를 하면 똑같은 문서를 만들 수 있습니다.)
   S : 현재 문서 저장하기 save. 중간중간 반드시 저장해 주세요. 자동저장 기능은 1.0 버전에는 없습니다. 
   F : 현재 문서에서 찾기 find
-  좌우화살표 left right : 단어 단위로 앞뒤 이동 move among words
+  좌우화살표 left right : 단어 단위로 앞뒤 이동 move by word
   상하화살표 up down : 글의 맨 앞과 맨 뒤로 이동 beginning end
   백스페이스 backspace: 단어 단위로 삭제 del by word
 
