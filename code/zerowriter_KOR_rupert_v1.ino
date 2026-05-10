@@ -58,6 +58,7 @@ bool needUpdate = false;
 bool statusBarNeedsUpdate = true; 
 unsigned long showSavedMessageTime = 0; 
 
+int startIdx = 0;
 int menuFocusSide = 0;   
 int leftMenuIndex = 0;   
 int rightFileIndex = 1;  
@@ -203,7 +204,7 @@ void preloadInitialImage() {
   SdFile file; if (file.open("initial.png", O_RDONLY)) { imgSize = file.fileSize(); if (imgBuffer) free(imgBuffer); imgBuffer = (uint8_t *)malloc(imgSize); if (imgBuffer) file.read(imgBuffer, imgSize); file.close(); }
 }
 
-void showInitialImage() { 
+void showInitialImage() { //잠자기 모드 initial.png 그림 띄우기 
     flushKorean(); 
     display.clearDisplay(); 
 
@@ -242,6 +243,53 @@ void hardRefresh() {
     needUpdate = true; statusBarNeedsUpdate = true; lastSy = -1;
 }
 
+int viewBottomIdx = 0; // 화면 맨 아랫줄에 고정될 글자 위치
+
+void adjustViewBottom() {
+    if (viewBottomIdx > fullText.length()) viewBottomIdx = fullText.length();
+
+    // 1. 커서가 화면 바닥보다 밑으로 내려가면, 바닥 앵커를 커서 위치로
+    if (cursorPos > viewBottomIdx) {
+        viewBottomIdx = cursorPos;
+    }
+
+    // 2. 화면 줄 수 계산
+    int dynamicVisibleLines = ((display.height() / displayScale) - (MARGIN_Y * 1.5)) / (baseFontSize + lineSpacing);
+    float avgCharWidth = baseFontSize * 0.8; 
+    int dynamicCharsPerLine = ((display.width() / displayScale) - MARGIN_X - RIGHT_EDGE_MARGIN) / avgCharWidth;
+
+    // 3. 바닥에서부터 거꾸로 올라가며 커서까지 몇 줄인지 카운트
+    int lineCount = 0;
+    int tempIdx = viewBottomIdx;
+    int chars = 0;
+    
+    while (tempIdx > cursorPos) {
+        tempIdx--;
+        chars++;
+        if (fullText[tempIdx] == '\n' || chars >= dynamicCharsPerLine) {
+            lineCount++;
+            chars = 0;
+        }
+    }
+
+    // 4. 커서가 화면 위로 도망갈 때
+    if (lineCount >= dynamicVisibleLines - 1) {
+        // 커서가 화면 꼭대기에 보이도록, 커서부터 아래로 화면 줄 수만큼 이동
+        int forwardLines = 0;
+        int fwdTemp = cursorPos;
+        int fwdChars = 0;
+        while (fwdTemp < fullText.length() && forwardLines < dynamicVisibleLines - 1) {
+            if (fullText[fwdTemp] == '\n' || fwdChars >= dynamicCharsPerLine) {
+                forwardLines++;
+                fwdChars = 0;
+            }
+            fwdTemp++;
+            fwdChars++;
+        }
+        viewBottomIdx = fwdTemp; // 새로운 바닥 앵커 확정
+    }
+}
+
 void printDualFont(String text, int x, int y, bool isMenu = false) {
   int cx = x; int applyLetterSp = isMenu ? 0 : letterSpacing; 
   u8g2_for_adafruit_gfx.setFontMode(0); 
@@ -266,10 +314,10 @@ void printMenuEntry(String text, int x, int y, bool isSelected, bool isRightSide
     int dotIdx = text.indexOf('.');
     String numPart = text.substring(0, dotIdx + 1);
     String contentPart = text.substring(dotIdx + 1);
-    if (isSelected && isDeletingFile) {
+    if (isSelected && isDeletingFile) {//문서목록에서 삭제키(백스페이스)
         display.fillRect((int)(x * displayScale - 4), (int)((y - 14) * displayScale), (int)(580 * displayScale), (int)(20 * displayScale), BLACK);
         u8g2_for_adafruit_gfx.setForegroundColor(WHITE); u8g2_for_adafruit_gfx.setBackgroundColor(BLACK);
-        String msg = isKoreanMode ? "삭제할까요? (Enter:확인 / BS:취소)" : "Delete? (Enter:OK / BS:Cancel)";
+        String msg = isKoreanMode ? "삭제할까요? (Enter:확인 / BS:취소)" : "Delete? (Enter:OK / BS:Cancel)";//엔터 눌러서 삭제, 백스페이스로 취소
         printDualFont(msg, x, y, true);
     } else if (isSelected) {
       int numW = u8g2_for_adafruit_gfx.getUTF8Width(numPart.c_str()) + 4;
@@ -356,41 +404,135 @@ void saveFile() {
 }
 
 
-void moveCursorToLineStart() {
-    // 현재 위치에서 뒤로 가며 줄바꿈('\n') 문자
-    while (cursorPos > 0 && fullText[cursorPos - 1] != '\n') {
-        cursorPos--;
-    }
+void moveCursorToLineStart() {//단어 단위로 앞으로 이동(변경)
+  // 커서 이동 전, 조합 중인 한글이 있다면 본문에 확정(Flush)
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          // 조립된 글자를 본문(fullText)의 현재 커서 위치로
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); // 글자가 확정된 길이만큼 커서를 뒤로 밀어줌
+          
+          // 확정 완료 후 한글 엔진 초기화
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+          flushKorean(); 
+          int p = cursorPos - 1;
+          
+          // 1. 현재 커서 앞의 공백이나 줄바꿈을 먼저 건너뜀
+          while (p > 0 && (fullText[p] == ' ' || fullText[p] == '\n')) p--;
+          
+          // 2. 글자들을 지나치다가 다시 공백이나 줄바꿈을 만나면 그 직후가 단어의 시작
+          while (p > 0 && fullText[p-1] != ' ' && fullText[p-1] != '\n') p--;
+          
+          cursorPos = (p < 0) ? 0 : p;
+          needUpdate = true;    
+}
+
+void moveCursorToLineEnd() {//단어 단위로 뒤로 이동(변경)
+  // 커서 이동 전, 조합 중인 한글이 있다면 본문에 확정(Flush)
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          // 조립된 글자를 본문(fullText)의 현재 커서 위치로
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); // 글자가 확정된 길이만큼 커서를 뒤로 밀어줌
+          
+          // 확정 완료 후 한글 엔진 초기화
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+    // 현재 위치에서 앞으로 가며 줄바꿈 문자 찾기
+      flushKorean(); 
+      int n = cursorPos;
+      
+      // 1. 현재 커서 위치의 공백이나 줄바꿈을 먼저 건너뜀
+      while (n < fullText.length() && (fullText[n] == ' ' || fullText[n] == '\n')) n++;
+      
+      // 2. 글자들을 지나치다가 다음 공백이나 줄바꿈을 만나면 그곳이 단어의 끝
+      while (n < fullText.length() && fullText[n] != ' ' && fullText[n] != '\n') n++;
+      
+      cursorPos = n;
+      needUpdate = true;
+}
+
+void moveCursorToParagraphStart() {//글 맨 앞으로 이동(변경)
+  // 커서 이동 전, 조합 중인 한글이 있다면 본문에 확정(Flush)
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          // 조립된 글자를 본문(fullText)의 현재 커서 위치로
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); // 글자가 확정된 길이만큼 커서를 뒤로 밀어줌
+          
+          // 확정 완료 후 한글 엔진 초기화
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+    // 글의 시작까지 위로 점프
+    cursorPos = 0;
+    
     needUpdate = true;
 }
 
-void moveCursorToLineEnd() {
-    // 현재 위치에서 앞으로 가며 줄바꿈 문자
-    while (cursorPos < fullText.length() && fullText[cursorPos] != '\n') {
-        cursorPos++;
-    }
+void moveCursorToParagraphEnd() {//글 맨 뒤로 이동(변경)
+  // 커서 이동 전, 조합 중인 한글이 있다면 본문에 확정(Flush)
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          // 조립된 글자를 본문(fullText)의 현재 커서 위치로
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); // 글자가 확정된 길이만큼 커서를 뒤로 밀어줌
+          
+          // 확정 완료 후 한글 엔진 초기화
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+    // 글의 끝까지 아래로 점프
+    cursorPos = fullText.length();
     needUpdate = true;
 }
 
-void moveCursorToParagraphStart() {
-    // 문단의 시작(빈 줄)까지 위로 점프
-    if (cursorPos > 0) cursorPos--;
-    while (cursorPos > 0 && !(fullText[cursorPos] == '\n' && fullText[cursorPos-1] == '\n')) {
-        cursorPos--;
-    }
-    needUpdate = true;
-}
+void selectLeft() { 
+    // 커서 이동 전, 조합 중인 한글이 있다면 본문에 확정(Flush)
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          // 조립된 글자를 본문(fullText)의 현재 커서 위치로
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); // 글자가 확정된 길이만큼 커서를 뒤로 밀어줌
+          
+          // 확정 완료 후 한글 엔진 초기화
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+      if (cursorPos > 0) cursorPos--; 
+      needUpdate = true; 
+  }
 
-void moveCursorToParagraphEnd() {
-    // 문단의 끝(빈 줄)까지 아래로 점프
-    while (cursorPos < fullText.length() && !(fullText[cursorPos] == '\n' && fullText[cursorPos+1] == '\n')) {
-        cursorPos++;
-    }
-    needUpdate = true;
-}
-
-void selectLeft() { if (cursorPos > 0) cursorPos--; needUpdate = true; }
-void selectRight() { if (cursorPos < fullText.length()) cursorPos++; needUpdate = true; }
+void selectRight() { 
+    // 커서 이동 전, 조합 중인 한글이 있다면 본문에 확정(Flush)
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          // 조립된 글자를 본문(fullText)의 현재 커서 위치로
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); // 글자가 확정된 길이만큼 커서를 뒤로 밀어줌
+          
+          // 확정 완료 후 한글 엔진 초기화
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+      if (cursorPos < fullText.length()) cursorPos++; 
+      needUpdate = true; 
+  }
 void selectUp() { 
     // 위쪽 줄의 같은 위치로 계산
     moveCursorUp(); 
@@ -401,6 +543,19 @@ void selectDown() {
 }
 
 void moveCursorUp() {
+    // 커서 이동 전, 조합 중인 한글이 있다면 본문에 확정(Flush)
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          // 조립된 글자를 본문(fullText)의 현재 커서 위치로
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); // 글자가 확정된 길이만큼 커서를 뒤로 밀어줌
+          
+          // 확정 완료 후 한글 엔진 초기화
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
     // 1. 현재 줄의 시작 위치
     int lineStart = cursorPos;
     while (lineStart > 0 && fullText[lineStart - 1] != '\n') {
@@ -428,6 +583,19 @@ void moveCursorUp() {
 }
 
 void moveCursorDown() {
+    // 커서 이동 전, 조합 중인 한글이 있다면 본문에 확정(Flush)
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          // 조립된 글자를 본문(fullText)의 현재 커서 위치로
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); // 글자가 확정된 길이만큼 커서를 뒤로 밀어줌
+          
+          // 확정 완료 후 한글 엔진 초기화
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
     // 1. 현재 줄의 시작 위치
     int lineStart = cursorPos;
     while (lineStart > 0 && fullText[lineStart - 1] != '\n') {
@@ -440,7 +608,7 @@ void moveCursorDown() {
     while (nextLineStart < fullText.length() && fullText[nextLineStart] != '\n') {
         nextLineStart++;
     }
-    if (nextLineStart >= fullText.length()) return; // 마지막 줄이면 끝냅
+    if (nextLineStart >= fullText.length()) return; // 마지막 줄이면 끝냄
     nextLineStart++; // '\n' 다음 글자로 이동
 
     // 3. 다음 줄의 끝 위치
@@ -474,7 +642,7 @@ void createNewDoc() {
     saveFile(); currentMode = TYPING_MODE; needUpdate = true; 
 }
 
-void setup() {
+void setup() {//부팅
   Serial.begin(921600); display.begin(); display.setRotation(0); u8g2_for_adafruit_gfx.begin(bigDisplay);
   // "Booting..." 메시지
   display.clearDisplay();
@@ -564,10 +732,10 @@ void loop() {
           else { currentMode = SEARCH_MODE; searchQuery = ""; }
           needUpdate = true; continue; 
       }
-      if (k == 80) { moveCursorToLineStart(); continue; } // Ctrl + Left
-      if (k == 79) { moveCursorToLineEnd(); continue; }   // Ctrl + Right
-      if (k == 82) { moveCursorToParagraphStart(); continue; } // Ctrl + Up
-      if (k == 81) { moveCursorToParagraphEnd(); continue; }   // Ctrl + Down
+      if (k == 57) { moveCursorToLineStart(); continue; } // Ctrl + Left : 앞 단어로 이동
+      if (k == 60) { moveCursorToLineEnd(); continue; }   // Ctrl + Right : 뒷 단어로 이동
+      if (k == 58) { moveCursorToParagraphStart(); continue; } // Ctrl + Up : 글 맨 앞으로 이동
+      if (k == 59) { moveCursorToParagraphEnd(); continue; }   // Ctrl + Down : 글 맨 뒤로 이동
     }
     if (k == 246) { 
       if (currentMode == TYPING_MODE) { flushKorean(); currentMode = FILE_MENU_MODE; refreshFileList(); isDeletingFile = false; } 
@@ -679,8 +847,27 @@ void loop() {
       }
     } else {
       // [타이핑 모드 입력 로직]
+      if (k == 57 || k == 58 || k == 59 || k == 60) {
+          flushKorean();
+      }
       if (k == 58) { int ls = fullText.lastIndexOf('\n', cursorPos - 1); int col = cursorPos - (ls + 1); int ps = fullText.lastIndexOf('\n', ls - 1); int pl = ls - (ps + 1); if (ls != -1) cursorPos = (ps + 1) + min(col, pl); continue; } 
-      if (k == 59) { int ns = fullText.indexOf('\n', cursorPos); if (ns != -1) { int ne = fullText.indexOf('\n', ns + 1); if (ne == -1) ne = fullText.length(); int nl = ne - (ns + 1); int ls = fullText.lastIndexOf('\n', cursorPos - 1); int col = cursorPos - (ls + 1); cursorPos = (ns + 1) + min(col, nl); } continue; }
+      if (k == 59) { 
+        int ns = fullText.indexOf('\n', cursorPos); 
+        if (ns != -1) { 
+          int ne = fullText.indexOf('\n', ns + 1); 
+          if (ne == -1) ne = fullText.length(); 
+          int nl = ne - (ns + 1); 
+          int ls = fullText.lastIndexOf('\n', cursorPos - 1); 
+          int col = cursorPos - (ls + 1); 
+          cursorPos = (ns + 1) + min(col, nl); 
+          } 
+          else if (fullText.indexOf('\n', cursorPos) == -1) {
+              cursorPos = fullText.length();
+          }
+
+          needUpdate = true;
+          continue; 
+          }
       if (k == 57) { if (cursorPos > 0) { int p = cursorPos - 1; while (p > 0 && (fullText[p] & 0xC0) == 0x80) p--; cursorPos = p; } continue; }
       if (k == 60) { if (cursorPos < fullText.length()) { int n = cursorPos + 1; while (n < fullText.length() && (fullText[n] & 0xC0) == 0x80) n++; cursorPos = n; } continue; }
       if (real == '\b') doBackspace();
@@ -722,7 +909,7 @@ void loop() {
     }
   } // <<< while 루프
 
-  // --- 출력부: 화면 그리기 ---
+  // --- 출력부: 화면 그리기 (while문 밖) ---
   if (needUpdate) {
     currentActiveScale = displayScale; 
     bool doFullRefresh = false;
@@ -765,7 +952,7 @@ for(int i=0; i<12; i++) {
           printMenuEntry(lbl, 10, 60 + (i*24), (menuFocusSide == 0 && leftMenuIndex == i), false);
         }
         printDualFont(isKoreanMode ? "=== 문서목록 ===" : "=== DOCUMENTS ===", 235, 30, true); 
-        // 계산된 최대 개수만큼만 화면에 그리고, 넘어가면 스크롤
+        // 계산된 최대 개수만큼만 화면에 그리고, 넘어가면 스크롤되게
         int maxVisibleItems = ((display.height() / displayScale) - 70) / 22;
         for (int f=1; f<=fileCount; f++) { 
             if (f > fileScrollOffset && f <= fileScrollOffset + maxVisibleItems) { 
@@ -775,6 +962,8 @@ for(int i=0; i<12; i++) {
         }
     } else {
         // 타이핑 화면 렌더링
+        adjustViewBottom(); // 그리기 직전에 커서 이탈 방지 앵커 계산
+
         String d = fullText;
         String composing = "";
         if (currentMode == TYPING_MODE && (cho != -1 || jung != -1)) {
@@ -784,12 +973,17 @@ for(int i=0; i<12; i++) {
         int targetIdx = cursorPos + composing.length();
         d = d.substring(0, cursorPos) + composing + d.substring(cursorPos);
 
+        // 문서 맨 끝(d.length)이 아니라, 계산된 바닥 앵커부터 그리기 시작
+        int renderEnd = viewBottomIdx;
+        if (currentMode == TYPING_MODE && cursorPos <= viewBottomIdx) renderEnd += composing.length();
+        if (renderEnd > d.length()) renderEnd = d.length();
+
         int statusBarBottom = (int)(45 * displayScale);
         display.fillRect(0, statusBarBottom, display.width(), display.height() - statusBarBottom, WHITE);
         int currentY = (display.height() / displayScale) - 25; 
-        int lastLineEnd = d.length();
-
-        for (int i = d.length(); i >= 0; i--) {
+        
+        int lastLineEnd = renderEnd; 
+        for (int i = renderEnd; i >= 0; i--) { 
             if (i == 0 || d[i-1] == '\n') {
                 String para = d.substring(i, lastLineEnd);
                 int maxWidth = (display.width() / displayScale) - MARGIN_X - RIGHT_EDGE_MARGIN;
