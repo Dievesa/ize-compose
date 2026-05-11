@@ -1,3 +1,7 @@
+---
+title: 제로라이터 잉크 한글 펌웨어(Zerowriter ink Korean Custom Firmware)
+---
+(여기는 한 줄 띄우고 본문 시작)
 
 
 #제로라이터 잉크 한글버전 자작 커스텀 펌웨어 
