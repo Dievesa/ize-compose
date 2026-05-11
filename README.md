@@ -2,7 +2,7 @@
 title: "Zerowriter ink Korean Custom Firmware"
 ---
 
-#제로라이터 잉크 한글버전 자작 커스텀 펌웨어 
+#제로라이터 잉크 한글버전 자작 커스텀 펌웨어  
 **zerowriter ink korean DIY Custom Firmware**  
 [github source code & release]( https://github.com/Dievesa/zerowriter/ )   
   
