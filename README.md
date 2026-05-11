@@ -41,3 +41,5 @@ SD카드는 반드시 FAT32로 포맷되어 있어야 한다고 합니다. 에�
 보드의 라이브러리 특성상 32기가 이하의 메모리를 사용하라고 합니다.  
   
 This project was built from scratch with the help of Gemini, driven by the desire for a better Korean writing environment.:-)
+![Gemini AI made image](https://github.com/Dievesa/zerowriter/blob/main/image/zerowriter-gemini-chrome.png)
+
