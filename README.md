@@ -1,5 +1,6 @@
 ---
-title: Zerowriter 한글 구현 프로젝트 (Korean Support)
+title: 
+Zerowriter Ink - 한글(Korean font) 지원 펌웨어
 ---
 
 #제로라이터 잉크 한글버전 자작 커스텀 펌웨어 
