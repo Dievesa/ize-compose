@@ -1,9 +1,11 @@
-
-
+![Main Showcase](https://github.com/Dievesa/zerowriter/blob/main/image/zerowriter-english-menu-fullview.jpg)
+  
 #제로라이터 잉크 한글버전 자작 커스텀 펌웨어  
 **zerowriter ink korean DIY Custom Firmware**  
 [github source code & release]( https://github.com/Dievesa/zerowriter/ )   
   
+![Korean Menu](https://github.com/Dievesa/zerowriter/blob/main/image/zerowriter-korean-menu.jpg)  
+    
 글씨체font는 [둥근모꼴]( https://cactus.tistory.com/193 )입니다.
 
 1. 초기화면sleep image은 SD card에 'initial.png'로 넣으면 됩니다. 잠자기 모드에서 볼 수 있습니다.  
@@ -25,6 +27,8 @@
   Bluetooth : 메뉴menu의 네트워크netwotk에서 엔터enter를 눌러서 BLE 선택한 후 Rupertwriter로 검색해서 연결하면 블루투스 외장 키보드로 사용할 수 있습니다.  zerowriter works as an external keyboard  
   wifi : 메뉴menu의 네트워크network에서 엔터enter를 눌러서 WIFI 선택한 후 Rupertwriter로 검색해서 연결(password 00009888)하면 파일을 볼 수 있습니다. 미리보기 및 파일삭제 기능이 있습니다. 문서 각각의 편집은 불가능합니다. 링크를 클릭한 후 조회한 파일보기 화면에서 복사해서 다른 앱에서 사용할 수 있습니다.  
     wifi 접속 후 http://rupertwriter.local 또는 109.168.4.1 접속  
+
+![Korean writing](https://github.com/Dievesa/zerowriter/blob/main/image/zerowriter-korean-writing.jpg)
   
 **현재 구동 후 눈에 띄는 버그는 없는 상태입니다. 그러나 긴 글을 작성하거나 파일 개수가 많아지면 어떻게 될지 모르니 반드시 중간중간 백업을 하시거나 테스트용 혹은 메모용으로 사용해 주세요.**  
   
