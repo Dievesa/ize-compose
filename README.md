@@ -1,5 +1,5 @@
 ---
-title: "제로라이터 잉크 한글 펌웨어 Zerowriter ink Korean Custom Firmware"
+title: "Zerowriter ink Korean Custom Firmware"
 ---
 
 #제로라이터 잉크 한글버전 자작 커스텀 펌웨어 
