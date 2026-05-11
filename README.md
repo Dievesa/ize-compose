@@ -1,5 +1,5 @@
 ---
-title: Zerowriter Ink - 한글(Korean font) 지원 펌웨어
+title: Zerowriter Ink Korean font firmware
 ---
 
 #제로라이터 잉크 한글버전 자작 커스텀 펌웨어 
