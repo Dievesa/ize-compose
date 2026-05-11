@@ -1,6 +1,6 @@
 #제로라이터 잉크 한글버전 자작 커스텀 펌웨어 
-**zerowriter ink korean DIY Custom Firmware**
-
+**zerowriter ink korean DIY Custom Firmware**  
+[github source code & release](https://github.com/Dievesa/zerowriter/)   
 글씨체는 [둥근모꼴]( https://cactus.tistory.com/193 )입니다.
 
 1. 초기화면sleep image은 SD카드에 'initial.png'로 넣으면 됩니다. 잠자기 모드에서 볼 수 있습니다.  
