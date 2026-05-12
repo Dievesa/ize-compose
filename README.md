@@ -1,3 +1,24 @@
+# 🚧 Major Refactoring & Update in Progress 🚧
+
+현재 **Rupert Edition**의 대대적인 코드 리팩토링 및 기능 업데이트가 진행 중입니다. 
+The **Rupert Edition** is currently undergoing a major code refactoring and functional update.
+
+### 🛠 What's changing in version 2.0? (주요 업데이트 예정 사항):
+* **Modularization**: Refining code structure for better stability and performance.
+  (코드 구조 개선을 통한 전반적인 안정성 및 성능 향상)
+* **Enhanced File Management**: Restoring the 'Delete via Backspace' function in the document list.
+  (문서 목록에서 백스페이스로 파일을 삭제하는 기능을 복원하여 문서 관리 편의성 강화)
+* **Seamless Firmware Update**: New update process that eliminates the need to disconnect cables or open the case.
+  (케이블을 분리하거나 케이스를 열 필요 없이 간편하게 수행할 수 있는 새로운 업데이트 방식 도입)
+* **System UI Overhaul**: Adding scroll functionality and dynamic layout for all font sizes.
+  (모든 글자 크기에서 최적화된 화면을 제공하는 메뉴 스크롤 및 동적 UI 개편)
+
+---
+
+⚠️ **Note**: During this period, the main branch may be unstable. Major updates will be finalized by this weekend.
+공사 기간 중에는 코드가 수시로 바뀔 수 있습니다. 이번 주말까지 작업을 완료할 예정입니다.
+
+
 # 🖋️ Zerowriter-Kor-Rupert-V1.2
 > **The First Hangeul(Korean) Support Firmware for Zerowriter Ink**  
 
