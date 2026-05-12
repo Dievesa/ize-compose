@@ -2,7 +2,7 @@
 https://raw.githubusercontent.com/Dievesa/zerowriter/main/image/zerowriter-english-menu-fullview.jpg )
   
 #제로라이터 잉크 한글버전 자작 커스텀 펌웨어  
-**zerowriter ink korean DIY Custom Firmware**  
+**zerowriter ink korean DIY Custom Firmware**  https://github.com/Dievesa/zerowriter/issues/1#issue-4425235437  
 [github source code & release]( https://github.com/Dievesa/zerowriter/ )   
   
 ![Korean Menu]( https://raw.githubusercontent.com/Dievesa/zerowriter/main/image/zerowriter-korean-menu.jpg )  
