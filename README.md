@@ -35,7 +35,7 @@ https://raw.githubusercontent.com/Dievesa/zerowriter/main/image/zerowriter-engli
 3. 네트워크 network  
   Bluetooth : 메뉴menu의 네트워크netwotk에서 엔터enter를 눌러서 BLE 선택한 후 Rupertwriter로 검색해서 연결하면 블루투스 외장 키보드로 사용할 수 있습니다.  zerowriter works as an external keyboard  
   wifi : 메뉴menu의 네트워크network에서 엔터enter를 눌러서 WIFI 선택한 후 Rupertwriter로 검색해서 연결(password 00009888)하면 파일을 볼 수 있습니다. 미리보기 및 파일삭제 기능이 있습니다. 문서 각각의 편집은 불가능합니다. 링크를 클릭한 후 조회한 파일보기 화면에서 복사해서 다른 앱에서 사용할 수 있습니다.  
-    wifi 접속 후 http://rupertwriter.local 또는 109.168.4.1 접속  
+    wifi 접속 후 http://rupertwriter.local 또는 192.168.4.1 접속  
 
 ![Korean writing]( 
 https://raw.githubusercontent.com/Dievesa/zerowriter/main/image/zerowriter-korean-writing.jpg )
