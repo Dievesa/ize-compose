@@ -7,6 +7,7 @@
 * **Vintage Aesthetics:** Inspired by the **Hermes Baby** typewriter.
 * **Hangeul Engine:** Perfectly optimized Korean character composition.
 * **Smart Features:** Bluetooth keyboard mode & WiFi file management.  
+​> **English users:** Please scroll down for the feature list or use a translator for the detailed guide below!  
 
 [github source code & release]( https://github.com/Dievesa/zerowriter/ )   
   
@@ -49,6 +50,16 @@ https://adafruit.github.io/Adafruit_WebSerial_ESPTool/ 에 접속 후, 맨 위 �
 SD카드는 반드시 FAT32로 포맷되어 있어야 한다고 합니다. 에러가 나면 포맷을 윈도우 기본 포매터가 아니라 https://www.sdcard.org/downloads/formatter/ 에서 다운받아 설치한 포매터를 사용해서 포맷해 보세요.
 보드의 라이브러리 특성상 32기가 이하의 메모리를 사용하라고 합니다.  
   
+
+## 📋 Features (English Summary)
+
+* **Full Hangeul Support:** Real-time Korean character composition (Jamo-combination) using optimized **D2Coding** fonts.
+* **Hermes Baby Aesthetics:** Minimalist and vintage UI design for a focused writing experience.
+* **Smart Editing Shortcuts:** Supports essential shortcuts like `Ctrl+C`, `Ctrl+V`, and word-level navigation.
+* **Dual Connectivity:** * **BLE Mode:** Use Zerowriter as a high-quality external Bluetooth keyboard.
+    * **WiFi Mode:** Wireless file management and preview via web browser (`192.168.4.1`).
+* **Stability:** Optimized firmware with reliable performance for daily drafting and note-taking.
+
 This project was built from scratch with the help of Gemini, driven by the desire for a better Korean writing environment.:-)
 ![Gemini AI made image]( 
 https://raw.githubusercontent.com/Dievesa/zerowriter/main/image/zerowriter-gemini-chrome.png )
