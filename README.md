@@ -46,7 +46,7 @@ Native Balkan QWERTZ mapping with direct physical key support for `š, đ, č, �
 
 ### 🇪🇺 Universal Europe Mode (For Standard QWERTY Users)
 If you prefer to keep your standard US QWERTY physical keycaps, use my built-in **EU Cycle Mode**.
-Within 3 seconds of typing a base character, hold <kbd>Alt</kbd> and tap it repeatedly to seamlessly cycle through its accent variations:
+Within 3 seconds of typing a base character, press <kbd>Alt</kbd> repeatedly to seamlessly cycle through its accent variations:
 * `a` / `A` : á, à, â, ä, ã, æ, a
 * `e` / `E` : é, è, ê, ë, e
 * `i` / `I` : í, ì, î, ï, ı, i
