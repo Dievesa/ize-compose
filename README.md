@@ -123,6 +123,9 @@ Rupert Edition uses intuitive shortcuts mapped directly to your mechanical keybo
 Search for and connect to the Wi-Fi network named Rupertwriter (Password: 00009888).
 Open a web browser on your connected device and go to 192.168.4.1.
 
+### ⚠️ Note on Special Characters
+Due to current font glyph limitations, certain currency symbols (e.g., `€`, `₺`) may temporarily render as blanks. Full multilingual font implementation is planned for future updates. Contributions and Pull Requests are always welcome!
+
 💾 Firmware Installation via Web Flasher
 Visit the Adafruit WebSerial ESPTool(https://adafruit.github.io/Adafruit_WebSerial_ESPTool/).
 In the top-right corner, set the baud rate to 921600 and click Connect.
