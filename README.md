@@ -5,7 +5,8 @@
 
 ## 🌍 Physical Layout Remapping (Firmware-Level)
 
-Rupert Edition v2.0.0 solves the structural limitations of the original firmware. We have remapped the input matrix so that the machine behaves as a native device. **Swap your physical keycaps, and the firmware follows.**
+Rupert Edition v2.0.0 solves the structural limitations of the original firmware. We have remapped the input matrix so that the machine behaves as a native device. **Swap your physical keycaps, and the firmware follows.** 
+(To select your keyboard, go to submenu(System Set) and select your language at the *Latin* section.
 
 ### **French (AZERTY) - Specialized Mapping**
 Full native AZERTY physical matrix mapping. Exact placements for `é, è, ç, à, ù` and all localized punctuation marks.
