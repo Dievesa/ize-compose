@@ -5,6 +5,16 @@
 
 The **Rupert Edition v2.0.0** is a major system overhaul designed for the ultimate distraction-free writing experience. By leveraging the full power of the ESP32 dual-core architecture and a custom-built UTF-8 rendering engine, this firmware delivers industry-leading performance and global language compatibility.
 ---
+## ⚡ Quick Start: Instant Upgrade
+
+Skip the compilation and environment setup. Flash the pre-built binary directly to your device and start writing in seconds.
+
+### [📥 Download Ready-to-Flash Binary (v2.0.0)](https://github.com/Dievesa/zerowriter/releases/download/2.0.0/rupertwriter.bin)
+
+> **Pro Tip:** Download the `.bin` file above and flash it to address `0x0` using the ESP32 Flash Tool for an immediate upgrade to v2.0.0.
+
+---
+
 
 ## 🌍 Physical Layout Remapping (Firmware-Level)
 
