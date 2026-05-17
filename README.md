@@ -116,4 +116,5 @@ Rupert Edition uses intuitive shortcuts mapped directly to your mechanical keybo
 **The Easiest Way (Binary Flashing):**
 1. Navigate to the **[Releases]** tab.
 2. Download the latest `rupertwriter.bin` file.
-3. Flash the `.bin` file using an ESP32 Web Flasher tool or your device's existing OTA feature.
+3. Open the device case and disconnect the keyboard cable connected behind the display.
+4. Flash the `.bin` file using an ESP32 Web Flasher tool or your device's existing OTA feature.
