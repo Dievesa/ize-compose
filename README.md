@@ -2,6 +2,8 @@
 > **"The Ultimate Hardware-Level Typing Experience"**
 ![Downloads](https://img.shields.io/github/downloads/Dievesa/zerowriter/total?label=Downloads&color=orange)
 ![GitHub stars](https://img.shields.io/github/stars/Dievesa/zerowriter?style=social)
+![Visitors](https://api.visitorbadge.io/api/visitors?path=Dievesa.zerowriter&label=Visitors&countColor=%2326313c)
+
 
 ​"Iźe" (Иже): The South Slavic word for "Knowledge" or "Wisdom". This edition is a complete overhaul of my Zerowriter Ink firmware, focused on uncompromising performance and true multilingual fluidity. Built for those who demand a professional writing tool.
 
