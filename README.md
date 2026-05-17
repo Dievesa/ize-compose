@@ -1,7 +1,9 @@
-# 🖋️ Zerowriter: Rupert Edition v2.0.0
+# 🖋️ Zerowriter Iźe Edition(Rupert v2.0.0)
 > **"The Ultimate Hardware-Level Typing Experience"**
 ![Downloads](https://img.shields.io/github/downloads/Dievesa/zerowriter/total?label=Downloads&color=orange)
 ![GitHub stars](https://img.shields.io/github/stars/Dievesa/zerowriter?style=social)
+
+​"Iźe" (Иже): The South Slavic word for "Knowledge" or "Wisdom". This edition is a complete overhaul of the Zerowriter Ink firmware, focused on uncompromising performance and true multilingual fluidity. Built for those who demand a professional writing tool.
 
 The **Rupert Edition v2.0.0** is a major system overhaul designed for the ultimate distraction-free writing experience. By leveraging the full power of the ESP32 dual-core architecture and a custom-built UTF-8 rendering engine, this firmware delivers industry-leading performance and global language compatibility.
 ---
@@ -28,46 +30,51 @@ The Rupert Edition now features a hardware-level key mapping system. Simply swap
     * **Turkish (Turkish-Q):** Native ğ, ü, ş, i, ı, ö, ç mapping.
     * **Montenegrin (Balkan QWERTZ):** š, đ, č, ć, ž support.
 
-
 ### **French (AZERTY) - Specialized Mapping**
-Full native AZERTY physical matrix mapping. Exact placements for `é, è, ç, à, ù` and all localized punctuation marks.
+Full native AZERTY physical matrix mapping. Exact placements for `é, è, ç, à, ù` and all localized punctuation marks.<details>
 | Row | Key Layout |
 |:---:|:---|
 | **1** | <kbd>²</kbd> <kbd>&</kbd> <kbd>é</kbd> <kbd>"</kbd> <kbd>'</kbd> <kbd>(</kbd> <kbd>-</kbd> <kbd>è</kbd> <kbd>_</kbd> <kbd>ç</kbd> <kbd>à</kbd> <kbd>)</kbd> <kbd>=</kbd> |
 | **2** | &nbsp;&nbsp;<kbd>A</kbd> <kbd>Z</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> <kbd>Y</kbd> <kbd>U</kbd> <kbd>I</kbd> <kbd>O</kbd> <kbd>P</kbd> <kbd>^</kbd> <kbd>$</kbd> <kbd>*</kbd> |
 | **3** | &nbsp;&nbsp;&nbsp;<kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>M</kbd> <kbd>ù</kbd> |
 | **4** | &nbsp;&nbsp;&nbsp;&nbsp;<kbd>W</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd> <kbd>N</kbd> <kbd>,</kbd> <kbd>;</kbd> <kbd>:</kbd> <kbd>!</kbd> |
+</details>
 
 ### **German (QWERTZ) - Standard Precision**
-True 1:1 hardware mapping. Automatically swaps `Z` and `Y`. Natively supports `ä, ö, ü, ß` on their exact local key positions.
+True 1:1 hardware mapping. Automatically swaps `Z` and `Y`. Natively supports `ä, ö, ü, ß` on their exact local key positions.<details>
 | Row | Key Layout |
 |:---:|:---|
 | **1** | <kbd>^</kbd> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd> <kbd>6</kbd> <kbd>7</kbd> <kbd>8</kbd> <kbd>9</kbd> <kbd>0</kbd> <kbd>ß</kbd> <kbd>´</kbd> |
 | **2** | &nbsp;&nbsp;<kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> <kbd>Z</kbd> <kbd>U</kbd> <kbd>I</kbd> <kbd>O</kbd> <kbd>P</kbd> <kbd>Ü</kbd> <kbd>+</kbd> <kbd>#</kbd> |
 | **3** | &nbsp;&nbsp;&nbsp;<kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>Ö</kbd> <kbd>Ä</kbd> |
 | **4** | &nbsp;&nbsp;&nbsp;&nbsp;<kbd>Y</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd> <kbd>N</kbd> <kbd>M</kbd> <kbd>,</kbd> <kbd>.</kbd> <kbd>-</kbd> |
+</details>
 
 ### **Turkish (Turkish-Q) - Native Implementation**
-Hardware-level remapping for dedicated Turkish keys: `ğ, ü, ş, i, ı, ö, ç`.
+Hardware-level remapping for dedicated Turkish keys: `ğ, ü, ş, i, ı, ö, ç`.<details>
 | Row | Key Layout |
 |:---:|:---|
 | **1** | <kbd>"</kbd> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd> <kbd>6</kbd> <kbd>7</kbd> <kbd>8</kbd> <kbd>9</kbd> <kbd>0</kbd> <kbd>*</kbd> <kbd>-</kbd> |
 | **2** | &nbsp;&nbsp;<kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> <kbd>Y</kbd> <kbd>U</kbd> <kbd>I</kbd> <kbd>O</kbd> <kbd>P</kbd> <kbd>Ğ</kbd> <kbd>Ü</kbd> <kbd>,</kbd> |
 | **3** | &nbsp;&nbsp;&nbsp;<kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>Ş</kbd> <kbd>İ</kbd> |
 | **4** | &nbsp;&nbsp;&nbsp;&nbsp;<kbd><</kbd> <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd> <kbd>N</kbd> <kbd>M</kbd> <kbd>Ö</kbd> <kbd>Ç</kbd> <kbd>.</kbd> |
+</details>
 
 ### **Montenegrin (QWERTZ) - Balkan Layout**
-Native Balkan QWERTZ mapping with direct physical key support for `š, đ, č, ć, ž`.
+Native Balkan QWERTZ mapping with direct physical key support for `š, đ, č, ć, ž`.<details>
 | Row | Key Layout |
 |:---:|:---|
 | **1** | <kbd>'</kbd> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd> <kbd>6</kbd> <kbd>7</kbd> <kbd>8</kbd> <kbd>9</kbd> <kbd>0</kbd> <kbd>+</kbd> |
 | **2** | &nbsp;&nbsp;<kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> <kbd>Z</kbd> <kbd>U</kbd> <kbd>I</kbd> <kbd>O</kbd> <kbd>P</kbd> <kbd>Š</kbd> <kbd>Đ</kbd> <kbd>Ž</kbd> |
 | **3** | &nbsp;&nbsp;&nbsp;<kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>Č</kbd> <kbd>Ć</kbd> |
 | **4** | &nbsp;&nbsp;&nbsp;&nbsp;<kbd><</kbd> <kbd>Y</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd> <kbd>N</kbd> <kbd>M</kbd> <kbd>,</kbd> <kbd>.</kbd> <kbd>-</kbd> |
+</details>
 
 ### 🇪🇺 Universal Europe Mode (For Standard QWERTY Users)
 If you prefer to keep your standard US QWERTY physical keycaps, use my built-in **EU Cycle Mode**.
 Within 3 seconds of typing a base character, press <kbd>Alt</kbd> repeatedly to seamlessly cycle through its accent variations:
+<details>
+   
 * `a` / `A` : á, à, â, ä, ã, æ, a
 * `e` / `E` : é, è, ê, ë, e
 * `i` / `I` : í, ì, î, ï, ı, i
@@ -79,12 +86,14 @@ Within 3 seconds of typing a base character, press <kbd>Alt</kbd> repeatedly to 
 * `d` / `D` : đ, d
 * `z` / `Z` : ž, ź, z
 * `g` / `G` : ğ, g
+   
+</details>
 
----
 
 ## 🚀 Technical Breakouts
 
 ### **1. 2-Byte Encoding Integration**
+<details>
 Original Zerowriter layouts were limited by 1-byte encoding, making many European characters impossible to process. We have implemented a full UTF-8 compatible engine, ensuring every special character is processed natively without glitches.
 
 ### **2. Asynchronous Dual-Core Processing**
@@ -92,21 +101,42 @@ Original Zerowriter layouts were limited by 1-byte encoding, making many Europea
 * **Core 0:** Real-time character/word count background processing. 
 * *Experience zero latency even when working on book-length manuscripts.*
 
+</details>
+
 ### **3. Standalone Wireless File Server (No Cables Needed)**
+<details>
 Rupert Edition completely frees you from cables. The device operates as its own WiFi Access Point (`192.168.4.1` or `rupertwriter.local`). Simply connect your phone or PC to the device's network, open a web browser, and you can instantly download or delete your `.txt` drafts through a clean web interface.
+</details>
 
 ### **4. Universal BLE Text Dumping**
+<details>
 Need your text on another device instantly? Connect RupertWriter as a standard Bluetooth Keyboard to your smartphone or laptop. With the 'Safe BLE Transfer' function, the device will automatically "type out" your entire manuscript directly into any app (Notepad, Word, Email). We've even implemented a micro-delay for specific symbols (`/ \ - =`) to ensure 100% typo-free transmission across different operating systems.
+</details>
 
 ### 5. Intelligent Dual-Font Typography Engine
+<details>
 Rendering different languages perfectly on a low-refresh E-ink screen is notoriously difficult. My custom engine parses characters byte-by-byte in real time. It applies a rigid monospaced 16px Typewriter font for 3-byte characters (Korean), while seamlessly swapping to a byte-adaptive Unifont for 1-to-2-byte characters (Latin, Symbols, Accents). The result? Flawless layout and alignment, no matter how many languages you mix in a single sentence.
+</details>
 
 ### **6. E-ink Optimized Visual Search**
+<details>
 Press <kbd>Ctrl</kbd> + <kbd>F</kbd> to open the built-in search bar. When navigating through search results, the engine physically calculates the exact hardware matrix position of the target word on the E-ink screen. It then renders an inverted black box with white text directly over the word, providing a crystal-clear visual highlight without forcing a full screen refresh.
+</details>
 
 ### **7. Hardware-Level Battery Protection & Persistent NVS**
+<details>
 All your preferences (Keyboard Layout, Sleep Timers, Caps Lock status) are saved to Non-Volatile Storage (NVS) and survive reboots. To protect your battery life, if the voltage drops below 3.5V, the system flashes a hardware warning and enters a deep-sleep protection mode. It can only be awakened via a direct `ext0` hardware interrupt from the physical keyboard matrix.
----
+</details>
+
+
+## 🗺️ Roadmap: The Path to Wisdom (Iźe)
+
+<details>
+   
+* [x] **v2.0.0:** Asynchronous Dual-Core implementation & Multilingual UTF-8 Data Integrity.
+* [ ] **v2.1.x:** Dynamic Font Glyph Loading – *Planned expansion to natively render all currency symbols (€, ₺, etc.) on the display.*
+* [ ] **v2.x.x:** Advanced Battery Management & UI Skin Customization.
+</details>
 
 ## 🛠️ Maintenance & Safety (OTA)
 Updates are delivered over-the-air with **Signature Verification**. The device only accepts firmware containing the official `RUPERT_OFFICIAL_KOR` signature to prevent system corruption.
@@ -114,7 +144,8 @@ Updates are delivered over-the-air with **Signature Verification**. The device o
 ---
 
 ## ⌨️ Hotkeys (Hardware Mapped)
-
+<details>
+   
 Rupert Edition uses intuitive shortcuts mapped directly to your mechanical keyboard to keep your writing flow uninterrupted.
 
 | Function | Shortcut | Description |
@@ -130,7 +161,7 @@ Rupert Edition uses intuitive shortcuts mapped directly to your mechanical keybo
 | **Exit Network** | <kbd>Ctrl</kbd> + <kbd>Menu Key</kbd>| Instantly turns off WiFi/Bluetooth and returns to typing. |
 | **Word / Para Jump** | <kbd>Ctrl</kbd> + <kbd>Arrows</kbd>| Quickly navigate through words or jump to the end/beginning. |
 
----
+</details>
 
 ## 💾 Installation
 
@@ -151,8 +182,11 @@ In the top-right corner, set the baud rate to 921600 and click Connect.
 Enter the target address starting with 0x, select your firmware file, and click Program to start the flashing process.
 Once the upload is complete, reboot the device to apply the changes.
 
-### ⚠️ Note on Special Characters
-Due to current font glyph limitations, certain currency symbols (e.g., `€`, `₺`) may temporarily render as blanks. Full multilingual font implementation is planned for future updates. Contributions and Pull Requests are always welcome!
+### 🔒 Data Integrity & Extended Character Support
+The Iźe Edition prioritizes your data above all else. 
+While certain currency symbols (€, ₺, etc.) may not render on the E-ink display due to current font glyph hardware constraints, **the firmware fully captures and saves every byte in raw UTF-8.** * **No Data Loss:** Everything you type is preserved perfectly.
+* **Web-Ready:** When you access your files via the built-in Web Server, all symbols will appear correctly on your PC/Phone. 
+* **Future-Proof:** Your drafts are 100% compatible with any external text editor.
 
 ## ☕ Support the Project
 
