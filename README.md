@@ -1,12 +1,23 @@
 # 🖋️ Zerowriter: Rupert Edition v2.0.0
 > **"The Ultimate Hardware-Level Typing Experience"**
+![Downloads](https://img.shields.io/github/downloads/Dievesa/zerowriter/total?label=Downloads&color=orange)
+![GitHub stars](https://img.shields.io/github/stars/Dievesa/zerowriter?style=social)
 
+The **Rupert Edition v2.0.0** is a major system overhaul designed for the ultimate distraction-free writing experience. By leveraging the full power of the ESP32 dual-core architecture and a custom-built UTF-8 rendering engine, this firmware delivers industry-leading performance and global language compatibility.
 ---
 
 ## 🌍 Physical Layout Remapping (Firmware-Level)
 
 Rupert Edition v2.0.0 solves the structural limitations of the original firmware. We have remapped the input matrix so that the machine behaves as a native device. **Swap your physical keycaps, and the firmware follows.** 
 (To select your keyboard, go to submenu(System Set) and select your language at the *Latin* section.
+The Rupert Edition now features a hardware-level key mapping system. Simply swap your keycaps and the firmware handles the rest.
+* **Supported Layouts:**
+    * **Korean:** Optimized 2-byte rendering.
+    * **French (AZERTY):** Full support for é, è, ç, à.
+    * **German (QWERTZ):** Z/Y swap and ä, ö, ü, ß support.
+    * **Turkish (Turkish-Q):** Native ğ, ü, ş, i, ı, ö, ç mapping.
+    * **Montenegrin (Balkan QWERTZ):** š, đ, č, ć, ž support.
+
 
 ### **French (AZERTY) - Specialized Mapping**
 Full native AZERTY physical matrix mapping. Exact placements for `é, è, ç, à, ù` and all localized punctuation marks.
@@ -132,3 +143,11 @@ Once the upload is complete, reboot the device to apply the changes.
 
 ### ⚠️ Note on Special Characters
 Due to current font glyph limitations, certain currency symbols (e.g., `€`, `₺`) may temporarily render as blanks. Full multilingual font implementation is planned for future updates. Contributions and Pull Requests are always welcome!
+
+## ☕ Support the Project
+
+If this firmware has improved your writing experience, please consider supporting its development. Your support helps me maintain the project and keep adding more languages!
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/dievesa)
+
+*Every coffee counts. Thank you for your support!*
