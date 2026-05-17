@@ -948,30 +948,56 @@ String getAccentChar(char base, int mode, int cycle) {
 String getLocalLayoutChar(char us, bool isAlt, int mode) {
     if (mode == 2) { // 2: DE (QWERTZ)
         if (isAlt) { // AltGr 매핑
-            switch(us) { case 'q': case 'Q': return "@"; case 'e': case 'E': return "€"; case 'm': case 'M': return "µ"; case '8': return "["; case '9': return "]"; case '7': return "{"; case '0': return "}"; case '-': return "\\"; case ']': return "~"; }
+            switch(us) { case 'q': case 'Q': return "@";
+            case 'e': case 'E': return "€"; case 'm': case 'M': return "µ"; case '8': return "["; case '9': return "]";
+            case '7': return "{"; case '0': return "}"; case '-': return "\\"; case ']': return "~";
+            }
         } else {
-            switch(us) { case 'z': return "y"; case 'Z': return "Y"; case 'y': return "z"; case 'Y': return "Z"; case '-': return "ß"; case '_': return "?"; case '=': return "´"; case '+': return "`"; case '[': return "ü"; case '{': return "Ü"; case ']': return "+"; case '}': return "*"; case ';': return "ö"; case ':': return "Ö"; case '\'': return "ä"; case '"': return "Ä"; case '\\': return "#"; case '|': return "'"; case '/': return "-"; case '?': return "_"; }
+            switch(us) { 
+            case '`': return "^"; case '~': return "°"; // [루퍼트 수정] 독일어 맨 왼쪽 위 키 누락 복구
+            case 'z': return "y";
+            case 'Z': return "Y"; case 'y': return "z"; case 'Y': return "Z"; case '-': return "ß"; case '_': return "?";
+            case '=': return "´"; case '+': return "`"; case '[': return "ü"; case '{': return "Ü"; case ']': return "+";
+            case '}': return "*"; case ';': return "ö"; case ':': return "Ö"; case '\'': return "ä";
+            case '"': return "Ä"; case '\\': return "#"; case '|': return "'"; case '/': return "-"; case '?': return "_"; }
         }
     }
     else if (mode == 3) { // 3: MN (Montenegrin QWERTZ)
         if (isAlt) {
-            switch(us) { case 'v': case 'V': return "@"; case 'e': case 'E': return "€"; case 'f': case 'F': return "["; case 'g': case 'G': return "]"; case 'b': case 'B': return "{"; case 'n': case 'N': return "}"; case 'q': case 'Q': return "\\"; }
+            switch(us) { case 'v': case 'V': return "@"; case 'e': case 'E': return "€"; case 'f': case 'F': return "["; case 'g': case 'G': return "]"; case 'b': case 'B': return "{"; 
+            case 'n': case 'N': return "}"; case 'q': case 'Q': return "\\"; }
         } else {
-            switch(us) { case 'z': return "y"; case 'Z': return "Y"; case 'y': return "z"; case 'Y': return "Z"; case '[': return "š"; case '{': return "Š"; case ']': return "đ"; case '}': return "Đ"; case ';': return "č"; case ':': return "Č"; case '\'': return "ć"; case '"': return "Ć"; case '\\': return "ž"; case '|': return "Ž"; case '/': return "-"; case '?': return "_"; case '=': return "+"; case '+': return "*"; case '-': return "'"; case '_': return "?"; }
+            switch(us) { case 'z': return "y"; case 'Z': return "Y"; case 'y': return "z"; case 'Y': return "Z"; case '[': return "š"; case '{': return "Š"; case ']': return "đ"; case '}': return "Đ"; case ';': return "č"; case ':': return "Č"; case '\'': return "ć"; case '"': return "Ć";
+            case '\\': return "ž"; case '|': return "Ž"; case '/': return "-"; case '?': return "_"; case '=': return "+";
+            case '+': return "*"; case '-': return "'"; case '_': return "?";
+            }
         }
     }
     else if (mode == 4) { // 4: TR (Turkish Q)
         if (isAlt) {
-            switch(us) { case 'q': case 'Q': return "@"; case 'e': case 'E': return "€"; case 't': case 'T': return "₺"; case '8': return "["; case '9': return "]"; case '7': return "{"; case '0': return "}"; case '-': return "\\"; case '=': return "~"; }
+            switch(us) { case 'q': case 'Q': return "@";
+            case 'e': case 'E': return "€"; case 't': case 'T': return "₺"; case '8': return "["; case '9': return "]";
+            case '7': return "{"; case '0': return "}"; case '-': return "\\"; case '=': return "~";
+            }
         } else {
-            switch(us) { case '[': return "ğ"; case '{': return "Ğ"; case ']': return "ü"; case '}': return "Ü"; case ';': return "ş"; case ':': return "Ş"; case '\'': return "i"; case '"': return "İ"; case 'i': return "ı"; case 'I': return "I"; case ',': return "ö"; case '<': return "Ö"; case '.': return "ç"; case '>': return "Ç"; case '/': return "."; case '?': return ":"; }
+            switch(us) { 
+            case '`': return "\""; case '~': return "é"; // [루퍼트 수정] 터키어 맨 왼쪽 위 키 누락 복구
+            case '[': return "ğ";
+            case '{': return "Ğ"; case ']': return "ü"; case '}': return "Ü"; case ';': return "ş"; case ':': return "Ş";
+            case '\'': return "i"; case '"': return "İ"; case 'i': return "ı"; case 'I': return "I"; case ',': return "ö"; case '<': return "Ö"; case '.': return "ç"; case '>': return "Ç"; case '/': return "."; case '?': return ":"; }
         }
     }
     else if (mode == 5) { // 5: FR (AZERTY)
         if (isAlt) {
             switch(us) { case 'e': case 'E': return "€"; case '0': return "@"; case '5': return "["; case '_': return "]"; case '4': return "{"; case '+': return "}"; case '8': return "\\"; case '2': return "~"; }
         } else {
-            switch(us) { case 'q': return "a"; case 'Q': return "A"; case 'a': return "q"; case 'A': return "Q"; case 'w': return "z"; case 'W': return "Z"; case 'z': return "w"; case 'Z': return "W"; case 'm': return ","; case 'M': return "?"; case ',': return ";"; case '<': return "."; case '.': return ":"; case '>': return "/"; case '/': return "!"; case '?': return "§"; case ';': return "m"; case ':': return "M"; case '\'': return "ù"; case '"': return "%"; case '[': return "^"; case '{': return "¨"; case ']': return "$"; case '}': return "£"; case '-': return ")"; case '_': return "°"; case '=': return "="; case '+': return "+"; case '\\': return "*"; case '|': return "µ"; case '1': return "&"; case '!': return "1"; case '2': return "é"; case '@': return "2"; case '3': return "\""; case '#': return "3"; case '4': return "'"; case '$': return "4"; case '5': return "("; case '%': return "5"; case '6': return "-"; case '^': return "6"; case '7': return "è"; case '&': return "7"; case '8': return "_"; case '*': return "8"; case '9': return "ç"; case '(': return "9"; case '0': return "à"; case ')': return "0"; }
+            switch(us) { 
+            case '`': case '~': return "²"; // [루퍼트 수정] 사장님이 지적하신 프랑스어 ² 예외 처리 완벽 추가
+            case 'q': return "a"; case 'Q': return "A"; case 'a': return "q"; case 'A': return "Q"; case 'w': return "z"; case 'W': return "Z"; case 'z': return "w"; case 'Z': return "W"; case 'm': return ","; case 'M': return "?"; case ',': return ";"; case '<': return "."; case '.': return ":"; case '>': return "/"; case '/': return "!"; case '?': return "§"; case ';': return "m"; case ':': return "M"; case '\'': return "ù"; case '"': return "%";
+            case '[': return "^"; case '{': return "¨"; case ']': return "$"; case '}': return "£"; case '-': return ")";
+            case '_': return "°"; case '=': return "="; case '+': return "+"; case '\\': return "*"; case '|': return "µ";
+            case '1': return "&"; case '!': return "1"; case '2': return "é"; case '@': return "2";
+            case '3': return "\""; case '#': return "3"; case '4': return "'"; case '$': return "4"; case '5': return "("; case '%': return "5"; case '6': return "-"; case '^': return "6"; case '7': return "è"; case '&': return "7"; case '8': return "_"; case '*': return "8"; case '9': return "ç"; case '(': return "9"; case '0': return "à"; case ')': return "0"; }
         }
     }
     return isAlt ? "" : String(us); // 알트 누른 상태에서 매핑 없는 키는 오작동 방지를 위해 무시
