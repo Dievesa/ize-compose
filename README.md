@@ -118,3 +118,13 @@ Rupert Edition uses intuitive shortcuts mapped directly to your mechanical keybo
 2. Download the latest `rupertwriter.bin` file.
 3. Open the device case and disconnect the keyboard cable connected behind the display.
 4. Flash the `.bin` file using an ESP32 Web Flasher tool or your device's existing OTA feature.
+
+5. 🌐 Web Server Connection
+Search for and connect to the Wi-Fi network named Rupertwriter (Password: 00009888).
+Open a web browser on your connected device and go to 192.168.4.1.
+
+💾 Firmware Installation via Web Flasher
+Visit the Adafruit WebSerial ESPTool(https://adafruit.github.io/Adafruit_WebSerial_ESPTool/).
+In the top-right corner, set the baud rate to 921600 and click Connect.
+Enter the target address starting with 0x, select your firmware file, and click Program to start the flashing process.
+Once the upload is complete, reboot the device to apply the changes.
