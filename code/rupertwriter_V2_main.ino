@@ -262,7 +262,7 @@ void showInitialImage() {
     prefs.begin("zero", false);
     prefs.putBool("kor", isKoreanMode);
     prefs.putBool("caps", isCapsLockOn);
-    // 사장님이 강조하신 커서 위치 강제 고정 (맨 아래)
+    // 커서 위치 강제 고정 (맨 아래)
     prefs.putInt("cursor", fullText.length()); 
     prefs.end();
     saveSystemSettings();
@@ -855,7 +855,7 @@ void handleUpdateUpload() {
     HTTPUpload& upload = server.upload();
     
     if (upload.status == UPLOAD_FILE_START) {
-        // [루퍼트 수정] 업데이트 시작 시 플래그와 타이머 설정
+        // 업데이트 시작 시 플래그와 타이머 설정
         isUpdating = true; 
         lastActivityTime = millis(); 
         
@@ -872,7 +872,7 @@ void handleUpdateUpload() {
         } else {
             Update.printError(Serial);
         }
-        // [루퍼트 수정] 업데이트 완료 후 플래그 해제
+        // 업데이트 완료 후 플래그 해제
         isUpdating = false;
     }
 }
@@ -954,7 +954,7 @@ String getLocalLayoutChar(char us, bool isAlt, int mode) {
             }
         } else {
             switch(us) { 
-            case '`': return "^"; case '~': return "°"; // [루퍼트 수정] 독일어 맨 왼쪽 위 키 누락 복구
+            case '`': return "^"; case '~': return "°"; 
             case 'z': return "y";
             case 'Z': return "Y"; case 'y': return "z"; case 'Y': return "Z"; case '-': return "ß"; case '_': return "?";
             case '=': return "´"; case '+': return "`"; case '[': return "ü"; case '{': return "Ü"; case ']': return "+";
@@ -981,7 +981,7 @@ String getLocalLayoutChar(char us, bool isAlt, int mode) {
             }
         } else {
             switch(us) { 
-            case '`': return "\""; case '~': return "é"; // [루퍼트 수정] 터키어 맨 왼쪽 위 키 누락 복구
+            case '`': return "\""; case '~': return "é"; 
             case '[': return "ğ";
             case '{': return "Ğ"; case ']': return "ü"; case '}': return "Ü"; case ';': return "ş"; case ':': return "Ş";
             case '\'': return "i"; case '"': return "İ"; case 'i': return "ı"; case 'I': return "I"; case ',': return "ö"; case '<': return "Ö"; case '.': return "ç"; case '>': return "Ç"; case '/': return "."; case '?': return ":"; }
@@ -992,7 +992,7 @@ String getLocalLayoutChar(char us, bool isAlt, int mode) {
             switch(us) { case 'e': case 'E': return "€"; case '0': return "@"; case '5': return "["; case '_': return "]"; case '4': return "{"; case '+': return "}"; case '8': return "\\"; case '2': return "~"; }
         } else {
             switch(us) { 
-            case '`': case '~': return "²"; // [루퍼트 수정] 사장님이 지적하신 프랑스어 ² 예외 처리 완벽 추가
+            case '`': case '~': return "²"; // 프랑스어 ² 예외
             case 'q': return "a"; case 'Q': return "A"; case 'a': return "q"; case 'A': return "Q"; case 'w': return "z"; case 'W': return "Z"; case 'z': return "w"; case 'Z': return "W"; case 'm': return ","; case 'M': return "?"; case ',': return ";"; case '<': return "."; case '.': return ":"; case '>': return "/"; case '/': return "!"; case '?': return "§"; case ';': return "m"; case ':': return "M"; case '\'': return "ù"; case '"': return "%";
             case '[': return "^"; case '{': return "¨"; case ']': return "$"; case '}': return "£"; case '-': return ")";
             case '_': return "°"; case '=': return "="; case '+': return "+"; case '\\': return "*"; case '|': return "µ";
@@ -1676,7 +1676,7 @@ for(int i = leftMenuOffset; i < 12; i++) {
                                     // 현재 화면에 그리는 줄(j)에 검색어 시작점이 포함되어 있다면
                                     if (searchStart >= absLineStart && searchStart < absLineEnd) {
                                         
-                                        // 1. 검색어 시작점(X 좌표) 계산 (사장님의 한글/영문 폭 고정 로직 활용)
+                                        // 1. 검색어 시작점(X 좌표) 계산
                                         int startStrLen = searchStart - absLineStart;
                                         String beforeSearch = para.substring(lineStartIdx[j], lineStartIdx[j] + startStrLen);
                                         int searchXOffset = 0;
