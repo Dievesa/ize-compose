@@ -3,7 +3,7 @@
 ![Downloads](https://img.shields.io/github/downloads/Dievesa/zerowriter/total?label=Downloads&color=orange)
 ![GitHub stars](https://img.shields.io/github/stars/Dievesa/zerowriter?style=social)
 
-​"Iźe" (Иже): The South Slavic word for "Knowledge" or "Wisdom". This edition is a complete overhaul of the Zerowriter Ink firmware, focused on uncompromising performance and true multilingual fluidity. Built for those who demand a professional writing tool.
+​"Iźe" (Иже): The South Slavic word for "Knowledge" or "Wisdom". This edition is a complete overhaul of my Zerowriter Ink firmware, focused on uncompromising performance and true multilingual fluidity. Built for those who demand a professional writing tool.
 
 The **Rupert Edition v2.0.0** is a major system overhaul designed for the ultimate distraction-free writing experience. By leveraging the full power of the ESP32 dual-core architecture and a custom-built UTF-8 rendering engine, this firmware delivers industry-leading performance and global language compatibility.
 ---
