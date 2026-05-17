@@ -77,8 +77,8 @@ Rupert Edition completely frees you from cables. The device operates as its own 
 ### **4. Universal BLE Text Dumping**
 Need your text on another device instantly? Connect RupertWriter as a standard Bluetooth Keyboard to your smartphone or laptop. With the 'Safe BLE Transfer' function, the device will automatically "type out" your entire manuscript directly into any app (Notepad, Word, Email). We've even implemented a micro-delay for specific symbols (`/ \ - =`) to ensure 100% typo-free transmission across different operating systems.
 
-### **5. Intelligent Dual-Font Typography Engine**
-Rendering different languages perfectly on a low-refresh E-ink screen is notoriously difficult. My custom engine parses characters byte-by-byte in real time. It applies a rigid monospaced 16px Typewriter font for 3-byte characters (Korean), while seamlessly swapping to a proportional Unifont for 1-to-2-byte characters (Latin, Symbols, Accents). The result? Flawless layout and alignment, no matter how many languages you mix in a single sentence.
+### 5. Intelligent Dual-Font Typography Engine
+Rendering different languages perfectly on a low-refresh E-ink screen is notoriously difficult. My custom engine parses characters byte-by-byte in real time. It applies a rigid monospaced 16px Typewriter font for 3-byte characters (Korean), while seamlessly swapping to a byte-adaptive Unifont for 1-to-2-byte characters (Latin, Symbols, Accents). The result? Flawless layout and alignment, no matter how many languages you mix in a single sentence.
 
 ### **6. E-ink Optimized Visual Search**
 Press <kbd>Ctrl</kbd> + <kbd>F</kbd> to open the built-in search bar. When navigating through search results, the engine physically calculates the exact hardware matrix position of the target word on the E-ink screen. It then renders an inverted black box with white text directly over the word, providing a crystal-clear visual highlight without forcing a full screen refresh.
