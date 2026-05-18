@@ -1,5 +1,9 @@
 # 🖋️ Zerowriter Iźe Edition(Rupert v2.0.0)
 > **"The Ultimate Hardware-Level Typing Experience"**
+
+Advanced Multilingual E-ink Engine for Zerowriter Ink. Optimized for UTF-8 rendering, including pixel-perfect Korean (Noto Sans) and global language support via ESP32.
+
+
 ![Downloads](https://img.shields.io/github/downloads/Dievesa/zerowriter/total?label=Downloads&color=orange)
 ![GitHub stars](https://img.shields.io/github/stars/Dievesa/zerowriter?style=social)
 ![Visitors](https://api.visitorbadge.io/api/visitors?path=Dievesa.zerowriter&label=Visitors&countColor=%2326313c)
