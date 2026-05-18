@@ -1,4 +1,9 @@
-# 🖋️ Zerowriter Iźe Edition(Rupert v2.0.0)
+# 🖋️ Zerowriter Rupert Edition v2.0.0; 
+iźe(Ize)
+
+
+
+
 > **"The Ultimate Hardware-Level Typing Experience"**
 
 Advanced Multilingual E-ink Engine for Zerowriter Ink. Optimized for UTF-8 rendering, including pixel-perfect Korean (Noto Sans) and global language support via ESP32.
