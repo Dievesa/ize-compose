@@ -15,7 +15,7 @@ Advanced Multilingual E-ink Engine for Zerowriter Ink. Optimized for UTF-8 rende
 
 ​"Iźe" (Иже): The South Slavic word for "Knowledge" or "Wisdom". This edition is a complete overhaul of my Zerowriter Ink firmware, focused on uncompromising performance and true multilingual fluidity. Built for those who demand a professional writing tool.
 
-The **Rupert Edition v2.0.0** is a major system overhaul designed for the ultimate distraction-free writing experience. By leveraging the full power of the ESP32 dual-core architecture and a custom-built UTF-8 rendering engine, this firmware delivers industry-leading performance and global language compatibility.
+The **Rupert Edition v2.0.0(Ize)** is a major system overhaul designed for the ultimate distraction-free writing experience. By leveraging the full power of the ESP32 dual-core architecture and a custom-built UTF-8 rendering engine, this firmware delivers industry-leading performance and global language compatibility.
 ---
 ## ⚡ Quick Start: Instant Upgrade
 
@@ -30,9 +30,9 @@ Skip the compilation and environment setup. Flash the pre-built binary directly 
 
 ## 🌍 Physical Layout Remapping (Firmware-Level)
 
-Rupert Edition v2.0.0 solves the structural limitations of the original firmware. We have remapped the input matrix so that the machine behaves as a native device. **Swap your physical keycaps, and the firmware follows.** 
+Rupert Edition v2.0.0(Ize) solves the structural limitations of the original firmware. I have remapped the input matrix so that the machine behaves as a native device. **Swap your physical keycaps, and the firmware follows.** 
 (To select your keyboard, go to submenu(System Set) and select your language at the *Latin* section.
-The Rupert Edition now features a hardware-level key mapping system. Simply swap your keycaps and the firmware handles the rest.
+
 * **Supported Layouts:**
     * **Korean:** Optimized 2-byte rendering.
     * **French (AZERTY):** Full support for é, è, ç, à.
@@ -109,9 +109,12 @@ Within 3 seconds of typing a base character, press <kbd>Alt</kbd> repeatedly to 
 
 ### **1. 2-Byte Encoding Integration**
 <details>
-Original Zerowriter layouts were limited by 1-byte encoding, making many European characters impossible to process. We have implemented a full UTF-8 compatible engine, ensuring every special character is processed natively without glitches.
+I have implemented a full UTF-8 compatible engine, ensuring every special character is processed natively without glitches.
+
+</details>
 
 ### **2. Asynchronous Dual-Core Processing**
+<details>
 * **Core 1:** High-priority keyboard interrupts & 1-bit E-ink rendering.
 * **Core 0:** Real-time character/word count background processing. 
 * *Experience zero latency even when working on book-length manuscripts.*
@@ -120,12 +123,12 @@ Original Zerowriter layouts were limited by 1-byte encoding, making many Europea
 
 ### **3. Standalone Wireless File Server (No Cables Needed)**
 <details>
-Rupert Edition completely frees you from cables. The device operates as its own WiFi Access Point (`192.168.4.1` or `rupertwriter.local`). Simply connect your phone or PC to the device's network, open a web browser, and you can instantly download or delete your `.txt` drafts through a clean web interface.
+Rupert Edition completely frees you from cables. The device operates as its own WiFi Access Point (`192.168.4.1` or `rupertwriter.local`). Simply connect your phone or PC to the device's network, open a web browser, and you can instantly copy or delete your `.txt` drafts through a clean web interface.
 </details>
 
 ### **4. Universal BLE Text Dumping**
 <details>
-Need your text on another device instantly? Connect RupertWriter as a standard Bluetooth Keyboard to your smartphone or laptop. With the 'Safe BLE Transfer' function, the device will automatically "type out" your entire manuscript directly into any app (Notepad, Word, Email). We've even implemented a micro-delay for specific symbols (`/ \ - =`) to ensure 100% typo-free transmission across different operating systems.
+Need your text on another device instantly? Connect RupertWriter as a standard Bluetooth Keyboard to your smartphone or laptop. With the 'Safe BLE Transfer' function, the device will automatically "type out" your entire manuscript directly into any app (Notepad, Word, Email). I've even implemented a micro-delay for specific symbols (`/ \ - =`) to ensure 100% typo-free transmission across different operating systems.
 </details>
 
 ### 5. Intelligent Dual-Font Typography Engine
@@ -140,7 +143,7 @@ Press <kbd>Ctrl</kbd> + <kbd>F</kbd> to open the built-in search bar. When navig
 
 ### **7. Hardware-Level Battery Protection & Persistent NVS**
 <details>
-All your preferences (Keyboard Layout, Sleep Timers, Caps Lock status) are saved to Non-Volatile Storage (NVS) and survive reboots. To protect your battery life, if the voltage drops below 3.5V, the system flashes a hardware warning and enters a deep-sleep protection mode. It can only be awakened via a direct `ext0` hardware interrupt from the physical keyboard matrix.
+All your preferences (Keyboard Layout, Sleep Timers, Caps Lock status) are saved to Non-Volatile Storage (NVS) and survive reboots. To protect your battery life, if the voltage drops below 3.5V, the system flashes a hardware warning and enters a deep-sleep protection mode. It can only be awakened via the power tiggle switch. 
 </details>
 
 
@@ -149,14 +152,17 @@ All your preferences (Keyboard Layout, Sleep Timers, Caps Lock status) are saved
 <details>
    
 * [x] **v2.0.0:** Asynchronous Dual-Core implementation & Multilingual UTF-8 Data Integrity.
+   
 * [ ] **v2.1.x:** Dynamic Font Glyph Loading – *Planned expansion to natively render all currency symbols (€, ₺, etc.) on the display.*
+
 * [ ] **v2.x.x:** Advanced Battery Management & UI Skin Customization.
 </details>
 
 ## 🛠️ Maintenance & Safety (OTA)
-Updates are delivered over-the-air with **Signature Verification**. The device only accepts firmware containing the official `RUPERT_OFFICIAL_KOR` signature to prevent system corruption.
 
----
+<details>
+Updates are delivered over-the-air with **Signature Verification**. The device only accepts firmware containing the official `RUPERT_OFFICIAL_KOR` signature to prevent system corruption.
+</details>
 
 ## ⌨️ Hotkeys (Hardware Mapped)
 <details>
