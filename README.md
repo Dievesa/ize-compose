@@ -1,4 +1,4 @@
-# 🖋️ Zerowriter Rupert Edition v2.0.0;Iźe(Ize)
+# 🖋️ Zerowriter Ink Rupert Edition v2.0.0;Iźe(Ize)
 
 
 
