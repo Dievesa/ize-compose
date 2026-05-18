@@ -158,12 +158,6 @@ All your preferences (Keyboard Layout, Sleep Timers, Caps Lock status) are saved
 * [ ] **v2.x.x:** Advanced Battery Management & UI Skin Customization.
 </details>
 
-## 🛠️ Maintenance & Safety (OTA)
-
-<details>
-Updates are delivered over-the-air with **Signature Verification**. The device only accepts firmware containing the official `RUPERT_OFFICIAL_KOR` signature to prevent system corruption.
-</details>
-
 ## ⌨️ Hotkeys (Hardware Mapped)
 <details>
    
@@ -191,7 +185,7 @@ Rupert Edition uses intuitive shortcuts mapped directly to your mechanical keybo
 2. Download the latest `rupertwriter.bin` file.
 3. Open the device case and disconnect the keyboard cable connected behind the display.
 4. Flash the `.bin` file using an ESP32 Web Flasher tool or your device's existing OTA feature.
-
+Technical Note: Due to the 2.15MB firmware size required for the typography engine, this version utilizes a huge_app partition. OTA/SD internal updates are restricted by physical memory capacity; please use the Web Flasher or Serial for firmware management.
 
 🌐 Web Server Connection
 Search for and connect to the Wi-Fi network named Rupertwriter (Password: 00009888).
