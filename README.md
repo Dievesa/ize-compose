@@ -42,6 +42,7 @@ The Rupert Edition now features a hardware-level key mapping system. Simply swap
 
 ### **French (AZERTY) - Specialized Mapping**
 Full native AZERTY physical matrix mapping. Exact placements for `é, è, ç, à, ù` and all localized punctuation marks.<details>
+
 | Row | Key Layout |
 |:---:|:---|
 | **1** | <kbd>²</kbd> <kbd>&</kbd> <kbd>é</kbd> <kbd>"</kbd> <kbd>'</kbd> <kbd>(</kbd> <kbd>-</kbd> <kbd>è</kbd> <kbd>_</kbd> <kbd>ç</kbd> <kbd>à</kbd> <kbd>)</kbd> <kbd>=</kbd> |
@@ -52,6 +53,7 @@ Full native AZERTY physical matrix mapping. Exact placements for `é, è, ç, à
 
 ### **German (QWERTZ) - Standard Precision**
 True 1:1 hardware mapping. Automatically swaps `Z` and `Y`. Natively supports `ä, ö, ü, ß` on their exact local key positions.<details>
+
 | Row | Key Layout |
 |:---:|:---|
 | **1** | <kbd>^</kbd> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd> <kbd>6</kbd> <kbd>7</kbd> <kbd>8</kbd> <kbd>9</kbd> <kbd>0</kbd> <kbd>ß</kbd> <kbd>´</kbd> |
@@ -61,7 +63,9 @@ True 1:1 hardware mapping. Automatically swaps `Z` and `Y`. Natively supports `�
 </details>
 
 ### **Turkish (Turkish-Q) - Native Implementation**
-Hardware-level remapping for dedicated Turkish keys: `ğ, ü, ş, i, ı, ö, ç`.<details>
+Hardware-level remapping for dedicated Turkish keys: `ğ, ü, ş, i, ı, ö, ç`.
+<details>
+   
 | Row | Key Layout |
 |:---:|:---|
 | **1** | <kbd>"</kbd> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd> <kbd>6</kbd> <kbd>7</kbd> <kbd>8</kbd> <kbd>9</kbd> <kbd>0</kbd> <kbd>*</kbd> <kbd>-</kbd> |
@@ -72,6 +76,7 @@ Hardware-level remapping for dedicated Turkish keys: `ğ, ü, ş, i, ı, ö, ç`
 
 ### **Montenegrin (QWERTZ) - Balkan Layout**
 Native Balkan QWERTZ mapping with direct physical key support for `š, đ, č, ć, ž`.<details>
+
 | Row | Key Layout |
 |:---:|:---|
 | **1** | <kbd>'</kbd> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd> <kbd>6</kbd> <kbd>7</kbd> <kbd>8</kbd> <kbd>9</kbd> <kbd>0</kbd> <kbd>+</kbd> |
