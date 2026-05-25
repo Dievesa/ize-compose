@@ -1,6 +1,6 @@
 # Ize Compose
 
-### Multilingual firmware for focused writing on e-paper hardware.
+### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
 
 **Coming Soon**
 
