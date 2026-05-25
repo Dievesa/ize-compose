@@ -58,4 +58,4 @@ It is now growing into a compact multilingual writing system for people who want
 ## Keyboard Layouts
 Multilingual keyboard layouts, displayed in their own languages on the device.
 
-[![Ize Compose Keyboard Layouts](https://img.youtube.com/vi/NxzNPiyAiqk/maxresdefault.jpg)](https://youtube.com/shorts/NxzNPiyAiqk?feature=share)
+[![Ize Compose Keyboard Layouts](https://img.youtube.com/vi/NxzNPiyAiqk/maxresdefault.jpg)](https://youtube.com/shorts/gFukSrRGRPw?feature=share)
