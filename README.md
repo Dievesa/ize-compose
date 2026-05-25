@@ -55,4 +55,8 @@ Ize Compose began as a way to make Korean writing genuinely usable on a dedicate
 It is now growing into a compact multilingual writing system for people who want to write with focus.
 
 ---
+## Keyboard Layouts
 
+A collection of keyboard layouts, displayed in their own languages.
+
+[![Ize Compose Keyboard Layouts](https://img.youtube.com/vi/NxzNPiyAiqk/maxresdefault.jpg)](https://youtube.com/shorts/NxzNPiyAiqk?feature=share)
