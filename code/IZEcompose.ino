@@ -1,0 +1,2533 @@
+
+#include <Adafruit_GFX.h>
+#include <Arduino.h>
+#include "Inkplate.h"            
+#include "U8g2_for_Adafruit_GFX.h"   
+
+#include <esp_sleep.h>
+#include <driver/uart.h>
+#include <Update.h> 
+#include "jado.h"
+#include "EmbeddedLatinFont.h"
+#include "soc/rtc_cntl_reg.h" 
+#include "soc/timer_group_reg.h"
+#include <SdFat.h>
+
+
+SdFat SD;
+const char* APP_ROOT_DIR = "/ize_compose";
+const char* FONT_DIR = "/ize_compose/hwalja";
+const char* FIRMWARE_DIR = "/ize_compose/upload";
+const char* INITIAL_IMAGE_PATH = "/ize_compose/initial.png";
+const char* FIRMWARE_UPDATE_PATH = "/ize_compose/upload/rupertwriter.bin";
+const uint8_t* font_ptr = EMBEDDED_FONT_LATIN;
+const uint8_t* font_latin_ptr = EMBEDDED_FONT_LATIN;
+const uint8_t* font_hangul_ptr = nullptr;
+const uint8_t* font_jamo_ptr = nullptr;
+const uint8_t* font_jp_ptr = nullptr;
+const uint8_t* font_greek_cyrillic_ptr = nullptr;
+const uint8_t* font_arabic_ptr = nullptr;
+const uint8_t* font_indic_ptr = nullptr;
+const uint8_t* font_sea_ptr = nullptr;
+const uint8_t* font_misc_ptr = nullptr;
+int currentFontSlot = 1;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+bool isFirmwareUpdateMode = false;
+#define FIRMWARE_VERSION "v2.0.0" 
+const char* FIRMWARE_SIGNATURE = "RUPERT_OFFICIAL_KOR";
+const gpio_num_t WAKE_BUTTON_PIN = GPIO_NUM_36;
+enum AppMode { TYPING_MODE, FILE_MENU_MODE, INITIAL_MODE, SEARCH_MODE, WIFI_SCAN_MODE, WIFI_PASSWORD_MODE };
+class InkplateProxy : public Inkplate {
+public:
+    InkplateProxy(uint8_t mode) : Inkplate(mode), Adafruit_GFX(800, 600) {}
+    void resetInternalCounter() { _partialUpdateCounter = 0; } 
+};
+extern InkplateProxy display;
+InkplateProxy display(INKPLATE_1BIT); 
+AppMode currentMode = TYPING_MODE;
+bool needUpdate = false;
+int lastCursorY = -1; // 이전 프레임에서 커서가 있던 Y 좌표 (-1 = 전체 재렌더 필요)
+bool isSignatureChecked = false;
+bool isSignatureValid = false;
+bool isUpdating = false;             
+unsigned long lastActivityTime = 0;
+bool webServerUpdateOnly = false;
+#include "insoe.h"
+void handleDownload(); 
+void handleRoot();
+void handleDelete();
+void handleRead();
+void handleTextUpload();
+void handleTextUploadComplete();
+
+TaskHandle_t CalcTaskHandle;
+volatile bool needCountUpdate = false; 
+String calcBuffer = "";               
+int sharedWordCount = 0;               
+int sharedCharCount = 0;
+AppMode lastMode = TYPING_MODE; 
+NetworkSubMode lastNetSubMode = NET_MAIN;
+
+NetworkSubMode currentNetSubMode = NET_MAIN;
+
+bool isDeletingFile = false; 
+String clipboard = "";
+bool isEnglishInputMode = false;
+
+NetworkSubMode tempNetCursor = NET_MAIN; 
+float displayScale = 2.0;       
+
+const float UI_SCALE = 2.0f;        
+int baseFontSize = 16;     
+String currentFileName = "doc_1.txt"; 
+
+struct FileInfo {
+    String name;
+    String preview;
+    float sizeKB;
+    uint32_t time;
+};
+FileInfo files[65]; 
+int fileCount = 0;
+
+uint8_t *imgBuffer = NULL;
+uint32_t imgSize = 0;
+
+int refreshLimit = 2000;   
+int charCounter = 0;    
+int lineSpacing = 2;     
+int letterSpacing = 0;   
+int typingSpeed = 0;     
+int leftMenuOffset = 0;
+int countMode = 0;
+int charwordcount = 0;
+int latinMode = 0;
+int englishLayoutIndex = 1;
+int keyboardLayoutIndex = 2;
+int previewEnglishLayoutIndex = 1;
+int previewKeyboardLayoutIndex = 2;
+bool isAltPressed = false;
+bool rtlTextMode = false;
+unsigned long lastTypingTime = 0; 
+char lastBaseChar = 0;            
+int accentCycleIdx = 0;           
+int lastAccentByteLen = 1;        
+void loadSystemSettings();
+void saveSystemSettings();
+void preloadInitialImage();
+void refreshFileList();
+void loadFile();
+const uint8_t* loadFontToPSRAM(int slot); 
+String searchQuery = ""; 
+#include <Preferences.h> 
+Preferences prefs;
+String fullText = ""; 
+int cursorPos = 0; 
+bool isKoreanMode = false; 
+bool isShiftPressed = false; 
+bool isCtrlPressed = false; 
+bool isCapsLockOn = false; 
+unsigned long lastKeyPress = 0; 
+bool statusBarNeedsUpdate = true; 
+unsigned long showSavedMessageTime = 0; 
+bool savedMessageVisible = false;
+bool updateScreenDrawn = false;
+
+int autoSleepIndex = 2; 
+unsigned long sleepIntervals[] = {30000, 60000, 300000, 600000, 1800000, 3600000, 0};
+String sleepLabels[] = {"30s", "1m", "5m", "10m", "30m", "1h", "OFF"};
+unsigned long lastInputTime = 0; 
+
+int startIdx = 0;
+int menuFocusSide = 0;   
+int leftMenuIndex = 0;   
+int fileScrollOffset = 0; 
+bool isEditingValue = false; 
+bool inSystemSubMenu = false; 
+bool networkExitRequested = false; 
+
+const char* choStrs[] = {"ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"};
+const char* jungStrs[] = {"ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"};
+int cho = -1, jung = -1, jong = -1; char lastJongChar = 0;
+#include "jeong_eum.h"
+KeyEngineScript getSelectedKeyEngine();
+int rightFileIndex;
+int oldCursorCx = 5;
+int oldCursorCy = 35;
+int lastSy = 0; 
+String otaPinCode = "";              
+bool isOtaPinVerified = false;       
+bool isOtaUpdatePending = false;     
+enum UpdateState { UPD_NONE, UPD_PIN_INPUT, UPD_WIFI_WAITING, UPD_SD_RUNNING };
+UpdateState updateState = UPD_NONE;
+String pinInputBuffer = "";          
+class ScaledDisplay : public Adafruit_GFX {
+public:
+  InkplateProxy* tft;
+  float* scaleRef; 
+  ScaledDisplay(InkplateProxy* displayInstance, int16_t w, int16_t h, float* s) 
+    : Adafruit_GFX(w, h), tft(displayInstance), scaleRef(s) {}
+    void drawPixel(int16_t x, int16_t y, uint16_t color) override {
+        int px = (int)(x * (*scaleRef));
+        int py = (int)(y * (*scaleRef));
+        int ps = (int)ceil(*scaleRef);
+        for (int dy = 0; dy < ps; dy++)
+            for (int dx = 0; dx < ps; dx++)
+                tft->writePixelInternal(px + dx, py + dy, color);
+    }
+};
+
+ScaledDisplay bigDisplay(&display, 780, 600, &displayScale);
+U8G2_FOR_ADAFRUIT_GFX u8g2_for_adafruit_gfx;
+
+int getTrueLength(String text) {
+  int count = 0;
+  for (int i = 0; i < text.length(); ) {
+    int l = 1; if ((text[i] & 0x80) != 0) { if ((text[i] & 0xE0) == 0xC0) l = 2; else if ((text[i] & 0xF0) == 0xE0) l = 3; else l = 4; }
+    i += l; count++;
+  }
+  return count;
+}
+
+int utf8PrevStart(const String& text, int pos) {
+    if (pos <= 0) return 0;
+    int p = pos - 1;
+    while (p > 0 && ((text[p] & 0xC0) == 0x80)) p--;
+    return p;
+}
+
+int utf8NextStart(const String& text, int pos) {
+    if (pos >= text.length()) return text.length();
+    int n = pos + 1;
+    while (n < text.length() && ((text[n] & 0xC0) == 0x80)) n++;
+    return n;
+}
+
+int utf8ColumnBetween(const String& text, int start, int end) {
+    int col = 0;
+    int p = start;
+    while (p < end && p < text.length()) {
+        p = utf8NextStart(text, p);
+        col++;
+    }
+    return col;
+}
+
+int utf8OffsetForColumn(const String& text, int start, int end, int column) {
+    int p = start;
+    int col = 0;
+    while (p < end && col < column) {
+        p = utf8NextStart(text, p);
+        col++;
+    }
+    return p;
+}
+
+void doBackspace() { 
+    bool textChanged = false;
+    KeyEngineScript activeEngine = getSelectedKeyEngine();
+    if (currentMode == SEARCH_MODE) {
+        if (searchQuery.length() > 0) {
+            int p = searchQuery.length() - 1;
+            while (p > 0 && (searchQuery[p] & 0xC0) == 0x80) p--;
+            searchQuery = searchQuery.substring(0, p);
+        } else {
+            keyEngineReset(activeEngine);
+            currentMode = TYPING_MODE;
+        }
+    } else if (keyEngineHandleBackspace(activeEngine)) { 
+    } else if (cursorPos > 0) { 
+      if (isCtrlPressed) { 
+            int p = cursorPos - 1;
+            
+            
+            while (p > 0 && (fullText[p] == ' ' || fullText[p] == '\n')) p--;
+            
+            
+            while (p > 0 && fullText[p-1] != ' ' && fullText[p-1] != '\n') p--;
+            
+            
+            fullText = fullText.substring(0, p) + fullText.substring(cursorPos); 
+            cursorPos = p;
+            textChanged = true;
+        }
+        else{
+            
+            int p = cursorPos - 1;
+            while (p > 0 && (fullText[p] & 0xC0) == 0x80) p--; 
+            fullText = fullText.substring(0, p) + fullText.substring(cursorPos); 
+            cursorPos = p;
+            textChanged = true;
+        }
+    } 
+    if (textChanged) keyEngineAfterEdit(activeEngine);
+    needUpdate = true; 
+    statusBarNeedsUpdate = true; 
+}
+
+void setupUSB() {
+}
+
+void handleUSB() {
+  if (Serial.available()) {
+    String incoming = Serial.readStringUntil('\n');
+  }
+}
+
+#include <BleKeyboard.h>
+
+BleKeyboard bleKeyboard("IZE Compose", "Ize", 100);
+bool bleStarted = false;
+
+void setupBLE() {
+  if (bleStarted) return;
+  bleKeyboard.setName("IZE Compose");
+  bleKeyboard.begin();
+  bleStarted = true;
+}
+
+void sendToBluetooth(String text) {
+  if (bleKeyboard.isConnected()) {
+    bleKeyboard.print(text); 
+  }
+}
+
+void sendFullTextViaBLE() {
+    if (!bleKeyboard.isConnected()) return;
+    
+    delay(2000); 
+    
+    for(int i = 0; i < fullText.length(); i++) {
+        char c = fullText[i];
+        
+        if (c == '\n') {
+            bleKeyboard.write(KEY_RETURN); 
+        } 
+        else if (c == '/' || c == '\\' || c == '-' || c == '=') {
+            
+            bleKeyboard.print(c);
+            delay(30); 
+        }
+        else {
+            bleKeyboard.print(c);
+        }
+        delay(20); 
+    }
+    
+}
+
+void sendBleInput(byte k, char real) {
+    if (!bleKeyboard.isConnected()) return;
+    if (real >= 32 && real <= 126) {
+        bleKeyboard.write((uint8_t)real);
+    } else if (real == '\n') {
+        bleKeyboard.write(KEY_RETURN);
+    } else if (real == '\b' || k == 13) {
+        bleKeyboard.write(KEY_BACKSPACE);
+    } else if (real == '\t') {
+        bleKeyboard.write(KEY_TAB);
+    } else if (k == 57) {
+        bleKeyboard.write(KEY_HOME);
+    } else if (k == 60) {
+        bleKeyboard.write(KEY_END);
+    } else if (k == 58) {
+        bleKeyboard.write(KEY_UP_ARROW);
+    } else if (k == 59) {
+        bleKeyboard.write(KEY_DOWN_ARROW);
+    }
+}
+
+void insertText(String str) { 
+    if (currentMode == SEARCH_MODE) {
+        searchQuery += str; 
+    } else {
+        keyEngineClampCursorToUtf8Boundary();
+        fullText = fullText.substring(0, cursorPos) + str + fullText.substring(cursorPos); 
+        cursorPos += str.length();
+        keyEngineClampCursorToUtf8Boundary();
+    }
+}
+
+void preloadInitialImage() {
+    String path = INITIAL_IMAGE_PATH;
+    SdFile file;
+    if (file.open(path.c_str(), O_RDONLY)) {
+        imgSize = file.fileSize();
+        if (imgSize > 500 * 1024) {
+            file.close();
+            return;
+        }
+        if (imgBuffer) {
+            free(imgBuffer);
+            imgBuffer = nullptr;
+        }
+        if (ESP.getFreePsram() > imgSize) {
+            imgBuffer = (uint8_t *)ps_malloc(imgSize);
+        } else {
+            imgBuffer = (uint8_t *)malloc(imgSize);
+        }
+        if (imgBuffer) file.read(imgBuffer, imgSize);
+        file.close();
+    }
+}
+
+void hardRefresh() {
+    
+    display.display();
+    display.clearDisplay(); 
+    display.display();
+    
+    display.resetInternalCounter(); 
+    needUpdate = true; statusBarNeedsUpdate = true; lastSy = -1;
+}
+
+int viewBottomIdx = 0; 
+
+void adjustViewBottom() {
+    
+    if (fullText.length() == 0) { viewBottomIdx = 0; return; }
+    if (viewBottomIdx > fullText.length()) viewBottomIdx = fullText.length();
+    if (cursorPos > viewBottomIdx) viewBottomIdx = cursorPos;
+
+    
+    int dynamicVisibleLines = ((display.height() / displayScale) - (MARGIN_Y * 1.5)) / (baseFontSize + lineSpacing);
+    if (dynamicVisibleLines < 1) dynamicVisibleLines = 1;
+    float avgCharWidth = baseFontSize * 0.8;
+    int dynamicCharsPerLine = ((display.width() / displayScale) - MARGIN_X - RIGHT_EDGE_MARGIN) / avgCharWidth;
+    if (dynamicCharsPerLine < 1) dynamicCharsPerLine = 1;
+    
+    
+    int approxLines = 1;
+    int charsInLine = 0;
+    for (int i = 0; i < fullText.length(); i++) {
+        if (fullText[i] == '\n' || charsInLine >= dynamicCharsPerLine) {
+            approxLines++;
+            charsInLine = 0;
+        }
+        charsInLine++;
+    }
+    if (approxLines <= dynamicVisibleLines) {
+        viewBottomIdx = fullText.length();
+        return;
+    }
+
+    
+    int lineCount = 0;
+    int tempIdx = viewBottomIdx;
+    int chars = 0;
+    while (tempIdx > cursorPos) {
+        tempIdx--;
+        chars++;
+        if (fullText[tempIdx] == '\n' || chars >= dynamicCharsPerLine) {
+            lineCount++;
+            chars = 0;
+        }
+    }
+    if (lineCount >= dynamicVisibleLines - 1) {
+        int forwardLines = 0;
+        int fwdTemp = cursorPos;
+        int fwdChars = 0;
+        while (fwdTemp < fullText.length() && forwardLines < dynamicVisibleLines - 1) {
+            if (fullText[fwdTemp] == '\n' || fwdChars >= dynamicCharsPerLine) {
+                forwardLines++;
+                fwdChars = 0;
+            }
+            fwdTemp++;
+            fwdChars++;
+        }
+        viewBottomIdx = fwdTemp;
+    }
+}
+
+void printDualFont(String text, int x, int y, bool isMenu = false, int maxWidth = 800) {
+    if (font_ptr == nullptr) return;
+    u8g2_for_adafruit_gfx.setFontMode(0);
+    int cx = x;
+    for (int i = 0; i < text.length(); ) {
+        if (cx > maxWidth) break;
+        int l = zwUtf8CharLen(text, i);
+        if (l <= 0) break;
+        uint32_t cp = zwUtf8Codepoint(text.c_str() + i, l);
+        bool drawable = zwIsDrawableCodepoint(cp);
+        String c = drawable ? text.substring(i, i + l) : String("?");
+        if (!drawable) l = 1;
+        const uint8_t* selectedFont = zwFontForCodepoint(cp);
+        if (selectedFont != nullptr) u8g2_for_adafruit_gfx.setFont(selectedFont);
+        int adv = zwGlyphAdvance(cp, l, isMenu);
+        if (zwGlyphVisible(cp)) u8g2_for_adafruit_gfx.drawUTF8(cx + zwGlyphDrawXOffset(cp), y + zwGlyphDrawYOffset(cp), c.c_str());
+        cx += adv;
+        i += l;
+    }
+}
+
+void printStatusText(String text, int x, int y) {
+    float prevScale = displayScale;
+    displayScale = 2.0f;
+    printCleanText(u8g2_for_adafruit_gfx, text, x, y, true);
+    displayScale = prevScale;
+}
+
+String utf8LimitLabel(String label, int maxChars) {
+    int count = 0;
+    int end = 0;
+    for (int i = 0; i < label.length() && count < maxChars; ) {
+        int l = zwUtf8CharLen(label, i);
+        if (l <= 0) break;
+        end = i + l;
+        i += l;
+        count++;
+    }
+    if (end >= label.length()) return label;
+    return label.substring(0, end) + "..";
+}
+
+String getStatusLanguageLabel() {
+    String label;
+    if (isKoreanMode) label = getKeyboardModeName();
+    else label = getEnglishKeyboardModeName();
+    if (isCapsLockOn && !isKoreanMode) label.toUpperCase();
+    if (getTrueLength(label) > 6) label = utf8LimitLabel(label, 4);
+    return "[" + label + "]";
+}
+
+String getEnglishKeyboardModeName() {
+    if (englishLayoutIndex <= 0) return String(KEYBOARD_LAYOUTS[0].name);
+    return String(KEYBOARD_LAYOUTS[1].name);
+}
+
+String getKeyboardModeName() {
+    if (keyboardLayoutIndex < 2 || keyboardLayoutIndex >= KEYBOARD_LAYOUT_TOTAL) keyboardLayoutIndex = 2;
+    return String(KEYBOARD_LAYOUTS[keyboardLayoutIndex].name);
+}
+
+String getPreviewEnglishKeyboardModeName() {
+    if (previewEnglishLayoutIndex <= 0) return String(KEYBOARD_LAYOUTS[0].name);
+    return String(KEYBOARD_LAYOUTS[1].name);
+}
+
+String getPreviewKeyboardModeName() {
+    if (previewKeyboardLayoutIndex < 2 || previewKeyboardLayoutIndex >= KEYBOARD_LAYOUT_TOTAL) previewKeyboardLayoutIndex = 2;
+    return String(KEYBOARD_LAYOUTS[previewKeyboardLayoutIndex].name);
+}
+
+String getAutoSleepDisplayLabel() {
+    if (autoSleepIndex == 0) return "30 SEC";
+    if (autoSleepIndex == 1) return "1 MIN";
+    if (autoSleepIndex == 2) return "5 MIN";
+    if (autoSleepIndex == 3) return "10 MIN";
+    if (autoSleepIndex == 4) return "30 MIN";
+    if (autoSleepIndex == 5) return "1 HR";
+    return "OFF";
+}
+
+void printMenuEntry(String text, int x, int y, bool isSelected, bool isRightSide) {
+    int drawX = (int)(x * displayScale);
+    int drawY = (int)(y * displayScale);
+    int boxW = isRightSide ? (int)(540 * displayScale) : (int)(190 * displayScale);
+    int boxH = (int)((baseFontSize + lineSpacing + 8) * displayScale);
+    int textX = (rtlTextMode && isRightSide) ? (x + 520 - zwMeasureTextWidth(text, true)) : x;
+    if (isSelected) {
+        
+        display.fillRect(drawX - (int)(4 * displayScale), drawY - (int)((baseFontSize + 2) * displayScale), boxW, boxH, BLACK);
+        u8g2_for_adafruit_gfx.setForegroundColor(WHITE); 
+        u8g2_for_adafruit_gfx.setBackgroundColor(BLACK);
+        printDualFont(text, textX, y, true, x + (isRightSide ? 520 : 185));
+        u8g2_for_adafruit_gfx.setForegroundColor(BLACK); 
+        u8g2_for_adafruit_gfx.setBackgroundColor(WHITE);
+    } else {
+        u8g2_for_adafruit_gfx.setForegroundColor(BLACK); 
+        u8g2_for_adafruit_gfx.setBackgroundColor(WHITE);
+        printDualFont(text, textX, y, true, x + (isRightSide ? 520 : 185));
+    }
+}
+
+void refreshFileList() {
+  fileCount = 0;
+  SdFile root;
+  if (!root.open("/")) return;
+  SdFile file;
+  
+  while (file.openNext(&root, O_RDONLY)) {
+    if (!file.isDir() && !file.isHidden()) {
+      char name[64];
+      file.getName(name, sizeof(name));
+      String fn = String(name);
+      String fnLower = fn; 
+      fnLower.toLowerCase();
+      
+      if (fnLower.endsWith(".txt") && !fn.startsWith(".") && !fn.startsWith("._")) {
+        fileCount++;
+        files[fileCount].name = fn;
+        files[fileCount].sizeKB = file.fileSize() / 1024.0; 
+        
+        char buf[33];
+        int n = file.read(buf, 32);
+        if (n > 0) buf[n] = '\0'; else buf[0] = '\0';
+        String pv = String(buf);
+        pv.replace("\n", " ");
+        files[fileCount].preview = pv;
+        
+        
+        int docNum = 0;
+        for(int k = 0; k < fn.length(); k++) {
+            if(isDigit(fn[k])) docNum = docNum * 10 + (fn[k] - '0');
+        }
+        files[fileCount].time = docNum; 
+      }
+    }
+    file.close();
+    yield();
+    if (fileCount >= 64) break;
+  }
+  root.close();
+  
+  
+  for (int i = 1; i < fileCount; i++) {
+    yield(); 
+    for (int j = i + 1; j <= fileCount; j++) {
+      if (files[i].time < files[j].time) {
+        FileInfo temp = files[i];
+        files[i] = files[j];
+        files[j] = temp;
+      }
+    }
+  }
+}
+
+void saveFile() { 
+    SdFile f; 
+    if (f.open(currentFileName.c_str(), O_WRONLY | O_CREAT | O_TRUNC)) { 
+        f.write(fullText.c_str(), fullText.length()); 
+        f.sync(); f.close(); 
+    } 
+    showSavedMessageTime = millis(); savedMessageVisible = true; needUpdate = true; statusBarNeedsUpdate = true; refreshFileList(); 
+}
+
+
+void moveCursorToLineStart() {
+  
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); 
+          
+          
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+          flushKorean(); 
+          int p = cursorPos - 1;
+          
+          
+          while (p > 0 && (fullText[p] == ' ' || fullText[p] == '\n')) p--;
+          
+          
+          while (p > 0 && fullText[p-1] != ' ' && fullText[p-1] != '\n') p--;
+          
+          cursorPos = (p < 0) ? 0 : p;
+          needUpdate = true;    
+}
+
+void moveCursorToLineEnd() {
+  
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); 
+          
+          
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+    
+      flushKorean(); 
+      int n = cursorPos;
+      
+      
+      while (n < fullText.length() && (fullText[n] == ' ' || fullText[n] == '\n')) n++;
+      
+      
+      while (n < fullText.length() && fullText[n] != ' ' && fullText[n] != '\n') n++;
+      
+      cursorPos = n;
+      needUpdate = true;
+}
+
+void moveCursorToParagraphStart() {
+  
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); 
+          
+          
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+    
+    cursorPos = 0;
+    
+    needUpdate = true;
+}
+
+void moveCursorToParagraphEnd() {
+  
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); 
+          
+          
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+    
+    cursorPos = fullText.length();
+    needUpdate = true;
+}
+
+void selectLeft() { 
+    
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); 
+          
+          
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+      if (cursorPos > 0) cursorPos = utf8PrevStart(fullText, cursorPos); 
+      needUpdate = true; 
+  }
+
+void selectRight() { 
+    
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); 
+          
+          
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+      if (cursorPos < fullText.length()) cursorPos = utf8NextStart(fullText, cursorPos); 
+      needUpdate = true; 
+  }
+void selectUp() { 
+    
+    moveCursorUp(); 
+}
+void selectDown() { 
+    
+    moveCursorDown(); 
+}
+
+void moveCursorUp() {
+    
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); 
+          
+          
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+    
+    int lineStart = cursorPos;
+    while (lineStart > 0 && fullText[lineStart - 1] != '\n') {
+        lineStart--;
+    }
+    if (lineStart == 0) return; 
+
+    
+    int column = utf8ColumnBetween(fullText, lineStart, cursorPos);
+
+    
+    int prevLineStart = lineStart - 1;
+    while (prevLineStart > 0 && fullText[prevLineStart - 1] != '\n') {
+        prevLineStart--;
+    }
+
+    
+    int prevLineEnd = lineStart - 1;
+    cursorPos = utf8OffsetForColumn(fullText, prevLineStart, prevLineEnd, column);
+    needUpdate = true;
+}
+
+void moveCursorDown() {
+    
+      if (cho != -1 || jung != -1) {
+          String composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+          
+          
+          fullText = fullText.substring(0, cursorPos) + composing + fullText.substring(cursorPos);
+          cursorPos += composing.length(); 
+          
+          
+          cho = -1; 
+          jung = -1; 
+          jong = -1;
+      }
+    
+    int lineStart = cursorPos;
+    while (lineStart > 0 && fullText[lineStart - 1] != '\n') {
+        lineStart--;
+    }
+    int column = utf8ColumnBetween(fullText, lineStart, cursorPos);
+
+    
+    int nextLineStart = cursorPos;
+    while (nextLineStart < fullText.length() && fullText[nextLineStart] != '\n') {
+        nextLineStart++;
+    }
+    if (nextLineStart >= fullText.length()) return; 
+    nextLineStart++; 
+
+    
+    int nextLineEnd = nextLineStart;
+    while (nextLineEnd < fullText.length() && fullText[nextLineEnd] != '\n') {
+        nextLineEnd++;
+    }
+
+    
+    cursorPos = utf8OffsetForColumn(fullText, nextLineStart, nextLineEnd, column);
+    needUpdate = true;
+}
+
+int getWordCount(const String& text) {
+    int wordCount = 0;
+    bool inWord = false;
+    
+    for (int i = 0; i < text.length(); i++) {
+        char c = text[i];
+        
+        
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            inWord = false;
+        } 
+        
+        else if (!inWord) {
+            inWord = true;
+            wordCount++;
+        }
+    }
+    return wordCount;
+}
+
+void loadFile() {
+    SdFile f;
+    if (f.open(currentFileName.c_str(), O_RDONLY)) {
+        fullText = "";
+        
+        size_t fSize = f.fileSize();
+        if (fSize > 0 && fSize < 1024 * 1024) {   
+            uint8_t* buf = (uint8_t*)ps_malloc(fSize + 1);
+            if (buf) {
+                f.read(buf, fSize);
+                buf[fSize] = '\0';
+                fullText = String((char*)buf);
+                free(buf);
+            }
+        }
+        f.close();
+        cursorPos = fullText.length();
+    }
+}
+
+void createNewDoc() { 
+    int n = 1; SdFile temp; 
+    while (temp.open(("doc_" + String(n) + ".txt").c_str(), O_RDONLY)) { temp.close(); n++; } 
+    currentFileName = "doc_" + String(n) + ".txt"; fullText = ""; cursorPos = 0; 
+    saveFile(); currentMode = TYPING_MODE; needUpdate = true; 
+}
+
+void CalculationTask(void * pvParameters) {
+    for(;;) {
+
+        
+        if (currentNetSubMode != NET_MAIN) {
+            if (Serial.available() > 0) {
+                byte k = Serial.peek(); 
+                if (k == 243) { 
+                    Serial.read(); 
+                    
+                    unsigned long t = millis();
+                    while (millis() - t < 100) { 
+                        if (Serial.available() > 0) {
+                            byte k2 = Serial.read();
+                            if (k2 == 246) {
+                                
+                                __atomic_store_n(&networkExitRequested, true, __ATOMIC_SEQ_CST);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        
+        if (needCountUpdate) {
+            portENTER_CRITICAL(&timerMux);
+            String tempBuffer = calcBuffer; 
+            portEXIT_CRITICAL(&timerMux);
+            sharedCharCount = getTrueLength(tempBuffer);
+            int words = 0;
+            bool inWord = false;
+            for (int i = 0; i < tempBuffer.length(); i++) {
+                if (isspace(tempBuffer[i])) inWord = false;
+                else if (!inWord) { inWord = true; words++; }
+            }
+            sharedWordCount = words;
+            portENTER_CRITICAL(&timerMux);   
+            needCountUpdate = false;
+            portEXIT_CRITICAL(&timerMux);
+        }
+        vTaskDelay(10); 
+    }
+}
+
+
+spi_flash_mmap_handle_t font_mmap_handle; 
+
+
+static bool isPsramPtr(const uint8_t* ptr) {
+    uintptr_t addr = (uintptr_t)ptr;
+    return addr >= 0x3F800000 && addr <= 0x3FBFFFFF;
+}
+
+static const uint8_t* loadFontFileToPSRAM(const char* path) {
+    SdFile f;
+    if (!f.open(path, O_RDONLY)) {
+        return nullptr;
+    }
+
+    size_t fSize = f.fileSize();
+    if (fSize == 0) {
+        f.close();
+        return nullptr;
+    }
+
+    if (ESP.getFreePsram() < fSize) {
+        f.close();
+        return nullptr;
+    }
+
+    uint8_t* pBuf = (uint8_t*)ps_malloc(fSize);
+    if (!pBuf) {
+        f.close();
+        return nullptr;
+    }
+
+    size_t bytesRead = f.read(pBuf, fSize);
+    f.close();
+    if (bytesRead != fSize) {
+        free(pBuf);
+        return nullptr;
+    }
+
+    const char* jamoPrefix = "font_jamo";
+    const char* hangulPrefix = "font_hangul";
+    const char* newJamoPrefix = "hwalja_jamo";
+    const char* newHangulPrefix = "hwalja_hangul";
+    size_t prefixLen = 0;
+    if (strcmp(path, "/ize_compose/hwalja/hwalja_jamo.bin") == 0 && fSize > strlen(jamoPrefix) && memcmp(pBuf, jamoPrefix, strlen(jamoPrefix)) == 0) prefixLen = strlen(jamoPrefix);
+    if (strcmp(path, "/ize_compose/hwalja/hwalja_hangul.bin") == 0 && fSize > strlen(hangulPrefix) && memcmp(pBuf, hangulPrefix, strlen(hangulPrefix)) == 0) prefixLen = strlen(hangulPrefix);
+    if (strcmp(path, "/ize_compose/hwalja/hwalja_jamo.bin") == 0 && fSize > strlen(newJamoPrefix) && memcmp(pBuf, newJamoPrefix, strlen(newJamoPrefix)) == 0) prefixLen = strlen(newJamoPrefix);
+    if (strcmp(path, "/ize_compose/hwalja/hwalja_hangul.bin") == 0 && fSize > strlen(newHangulPrefix) && memcmp(pBuf, newHangulPrefix, strlen(newHangulPrefix)) == 0) prefixLen = strlen(newHangulPrefix);
+    if (prefixLen > 0) {
+        memmove(pBuf, pBuf + prefixLen, fSize - prefixLen);
+    }
+
+    return pBuf;
+}
+
+static void replaceFontPtr(const uint8_t*& target, const uint8_t* next) {
+    if (next == nullptr) return;
+    if (target != nullptr && target != next && target != font_ptr && target != font_latin_ptr && target != font_hangul_ptr && target != font_jamo_ptr && target != font_jp_ptr && target != font_greek_cyrillic_ptr && target != font_arabic_ptr && target != font_indic_ptr && target != font_sea_ptr && target != font_misc_ptr && isPsramPtr(target)) free((void*)target);
+    target = next;
+}
+
+const uint8_t* loadFontToPSRAM(int slot) {
+    (void)slot;
+    const uint8_t* nextHangul = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_hangul.bin");
+    const uint8_t* nextJamo = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_jamo.bin");
+    const uint8_t* nextJp = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_jp.bin");
+    const uint8_t* nextGreekCyrillic = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_greek_cyrillic.bin");
+    const uint8_t* nextArabic  = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_arabic.bin");
+    const uint8_t* nextIndic   = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_indic.bin");
+    const uint8_t* nextSea     = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_sea.bin");
+    const uint8_t* nextMisc    = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_misc.bin");
+
+    font_latin_ptr = EMBEDDED_FONT_LATIN;
+    font_ptr = font_latin_ptr;
+    if (nextHangul) replaceFontPtr(font_hangul_ptr, nextHangul); else font_hangul_ptr = font_latin_ptr;
+    if (nextJamo) replaceFontPtr(font_jamo_ptr, nextJamo); else font_jamo_ptr = font_latin_ptr;
+    if (nextJp) replaceFontPtr(font_jp_ptr, nextJp); else font_jp_ptr = font_latin_ptr;
+    if (nextGreekCyrillic) replaceFontPtr(font_greek_cyrillic_ptr, nextGreekCyrillic); else font_greek_cyrillic_ptr = font_latin_ptr;
+    if (nextArabic) replaceFontPtr(font_arabic_ptr, nextArabic); else font_arabic_ptr = font_latin_ptr;
+    if (nextIndic) replaceFontPtr(font_indic_ptr, nextIndic); else font_indic_ptr = font_latin_ptr;
+    if (nextSea) replaceFontPtr(font_sea_ptr, nextSea); else font_sea_ptr = font_latin_ptr;
+    if (nextMisc) replaceFontPtr(font_misc_ptr, nextMisc); else font_misc_ptr = font_latin_ptr;
+    return font_ptr;
+}
+
+void setup() {
+    
+    setCpuFrequencyMhz(240);
+    Serial.begin(921600); 
+
+    
+    psramInit();
+    
+    display.begin(); 
+    pinMode(WAKE_BUTTON_PIN, INPUT);
+
+    loadSystemSettings();
+    display.setRotation(0);
+    u8g2_for_adafruit_gfx.begin(bigDisplay);
+    
+    
+    u8g2_for_adafruit_gfx.setForegroundColor(BLACK); 
+    u8g2_for_adafruit_gfx.setBackgroundColor(WHITE);
+    u8g2_for_adafruit_gfx.setFont(font_ptr);
+    
+    if (display.sdCardInit()) { 
+        if (ensureIzeComposeDirs()) migrateLegacyIzeComposeFiles();
+        
+        
+        font_ptr = loadFontToPSRAM(currentFontSlot);
+        if (font_ptr != nullptr) {
+            u8g2_for_adafruit_gfx.setFont(font_ptr);
+        }
+        
+        preloadInitialImage(); 
+        refreshFileList();
+        if (fileCount > 0) currentFileName = files[1].name; 
+        loadFile();
+    }
+    
+    display.clearDisplay();
+    printCleanText(u8g2_for_adafruit_gfx, "Booting...", MARGIN_X, MARGIN_Y);  
+    display.partialUpdate();
+    
+    setupUSB();
+    delay(1000); 
+    while(Serial.available() > 0) Serial.read();  
+    while(Serial1.available() > 0) Serial1.read(); 
+
+    
+    
+
+    cursorPos = fullText.length(); 
+    needUpdate = true;
+
+    xTaskCreatePinnedToCore(
+        CalculationTask, "CalcTask", 8192, NULL, 1, &CalcTaskHandle, 0
+    );
+}
+
+void saveSystemSettings() {
+    prefs.begin("rupert", false);
+    prefs.putBool("isKor", isKoreanMode);
+    prefs.putBool("isCaps", isCapsLockOn);
+    prefs.putInt("fIndex", rightFileIndex);
+    prefs.putInt("latin", latinMode);
+    prefs.putInt("engKbd", englishLayoutIndex);
+    prefs.putInt("kbd", keyboardLayoutIndex);
+    prefs.putInt("fSlot", currentFontSlot);  
+    prefs.end();
+}
+
+void loadSystemSettings() {
+    prefs.begin("rupert", true);
+    isKoreanMode = prefs.getBool("isKor", false);
+    isCapsLockOn = prefs.getBool("isCaps", false);
+    rightFileIndex = prefs.getInt("fIndex", 0);
+    latinMode = prefs.getInt("latin", 0);
+    englishLayoutIndex = prefs.getInt("engKbd", 1);
+    if (englishLayoutIndex < 0 || englishLayoutIndex > 1) englishLayoutIndex = 1;
+    keyboardLayoutIndex = prefs.getInt("kbd", 2);
+    if (keyboardLayoutIndex < 2 || keyboardLayoutIndex >= KEYBOARD_LAYOUT_TOTAL) keyboardLayoutIndex = 2;
+    previewEnglishLayoutIndex = englishLayoutIndex;
+    previewKeyboardLayoutIndex = keyboardLayoutIndex;
+    currentFontSlot = prefs.getInt("fSlot", 1);  
+    prefs.end();
+}
+
+void handleUpdateForm() {
+String html = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'><title>IZE Compose Update</title></head>"                  "<body style='font-family:sans-serif; text-align:center; margin-top:50px;'>";
+    
+    html += "<h2>Firmware OTA Update</h2>"
+            "<p style='color:#555;'>Select the compiled .bin file and click the button below.</p>"
+            "<form method='POST' action='/update' enctype='multipart/form-data'>"
+            "<input type='file' name='update' accept='.bin' required><br><br>"
+            "<input type='submit' value='Start Update' style='padding:10px 20px; font-size:16px; cursor:pointer;'>"
+            "</form>";
+    html += "</body></html>";
+    server.send(200, "text/html", html);
+}
+
+
+bool isFirmware = false;
+
+SdFile sdBackupFile;
+String uploadTargetPath = "";
+bool uploadAccepted = false;
+bool uploadIsFirmware = false;
+bool uploadIsInitialImage = false;
+bool pendingSdUpdate = false;
+int uploadHttpStatus = 200;
+String uploadHttpMessage = "OK";
+uint8_t uploadHeader[8];
+int uploadHeaderLen = 0;
+
+bool ensureDirExists(const char* path) {
+    if (SD.exists(path)) return true;
+    return SD.mkdir(path);
+}
+
+bool ensureIzeComposeDirs() {
+    if (!ensureDirExists(APP_ROOT_DIR)) return false;
+    if (!ensureDirExists(FONT_DIR)) return false;
+    if (!ensureDirExists(FIRMWARE_DIR)) return false;
+    return true;
+}
+
+bool copySdFileIfMissing(const char* fromPath, const char* toPath) {
+    if (SD.exists(toPath) || !SD.exists(fromPath)) return true;
+    SdFile src;
+    SdFile dst;
+    if (!src.open(fromPath, O_RDONLY)) return false;
+    if (!dst.open(toPath, O_WRONLY | O_CREAT | O_TRUNC)) {
+        src.close();
+        return false;
+    }
+    uint8_t buf[512];
+    int n = 0;
+    bool ok = true;
+    while ((n = src.read(buf, sizeof(buf))) > 0) {
+        if (dst.write(buf, n) != n) {
+            ok = false;
+            break;
+        }
+        yield();
+    }
+    src.close();
+    dst.close();
+    if (!ok) SD.remove(toPath);
+    return ok;
+}
+
+void migrateLegacyIzeComposeFiles() {
+    copySdFileIfMissing("/backup/initial.png", INITIAL_IMAGE_PATH);
+    copySdFileIfMissing("/backup/font_hangul.bin", "/ize_compose/hwalja/hwalja_hangul.bin");
+    copySdFileIfMissing("/backup/font_jamo.bin", "/ize_compose/hwalja/hwalja_jamo.bin");
+    copySdFileIfMissing("/backup/font_jp.bin", "/ize_compose/hwalja/hwalja_jp.bin");
+    copySdFileIfMissing("/backup/font_greek_cyrillic.bin", "/ize_compose/hwalja/hwalja_greek_cyrillic.bin");
+    copySdFileIfMissing("/backup/font_arabic.bin", "/ize_compose/hwalja/hwalja_arabic.bin");
+    copySdFileIfMissing("/backup/font_indic.bin", "/ize_compose/hwalja/hwalja_indic.bin");
+    copySdFileIfMissing("/backup/font_sea.bin", "/ize_compose/hwalja/hwalja_sea.bin");
+    copySdFileIfMissing("/backup/font_misc.bin", "/ize_compose/hwalja/hwalja_misc.bin");
+}
+
+void handleWebServerUpdate() {
+    server.sendHeader("Connection", "close");
+    if (!webServerUpdateOnly) {
+        server.send(403, "text/plain", "Update upload is only available from Update mode.");
+        return;
+    }
+    server.send(uploadHttpStatus, "text/plain", uploadHttpMessage);
+    if (pendingSdUpdate) {
+        delay(200);
+        WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_OFF);
+        currentNetSubMode = NET_MAIN;
+        isFirmwareUpdateMode = false;
+        isUpdating = false;
+        updateScreenDrawn = false;
+        updateState = UPD_SD_RUNNING;
+        pendingSdUpdate = false;
+        needUpdate = true;
+    }
+}
+
+bool isAllowedFontBinName(const String& filename) {
+    return filename == "hwalja_hangul.bin" ||
+           filename == "hwalja_jamo.bin" ||
+           filename == "hwalja_jp.bin" ||
+           filename == "hwalja_greek_cyrillic.bin" ||
+           filename == "hwalja_arabic.bin" ||
+           filename == "hwalja_indic.bin" ||
+           filename == "hwalja_sea.bin" ||
+           filename == "hwalja_misc.bin";
+}
+
+bool isUploadedPng() {
+    const uint8_t pngSig[8] = {137, 80, 78, 71, 13, 10, 26, 10};
+    if (uploadHeaderLen < 8) return false;
+    for (int i = 0; i < 8; i++) {
+        if (uploadHeader[i] != pngSig[i]) return false;
+    }
+    return true;
+}
+
+void handleWebServerUpload() {
+    HTTPUpload& upload = server.upload();
+
+    if (upload.status == UPLOAD_FILE_START) {
+        if (!webServerUpdateOnly) {
+            uploadAccepted = false;
+            uploadHttpStatus = 403;
+            uploadHttpMessage = "Update upload is only available from Update mode.";
+            return;
+        }
+
+        String clientPin = server.header("X-OTA-PIN");
+        if (otaPinCode != "" && clientPin != otaPinCode) {
+            server.send(403, "text/plain", "Invalid PIN");
+            return;
+        }
+
+        String filename = upload.filename;
+        uploadTargetPath = "";
+        uploadAccepted = false;
+        uploadIsFirmware = false;
+        uploadIsInitialImage = false;
+        pendingSdUpdate = false;
+        uploadHttpStatus = 400;
+        uploadHttpMessage = "Unsupported file";
+        uploadHeaderLen = 0;
+        isUpdating = true;
+        if (CalcTaskHandle != NULL) vTaskSuspend(CalcTaskHandle);
+
+        if (filename == "rupertwriter.bin") {
+            if (!ensureIzeComposeDirs()) {
+                uploadHttpStatus = 500;
+                uploadHttpMessage = "Could not create ize_compose folders";
+            } else {
+                uploadTargetPath = FIRMWARE_UPDATE_PATH;
+                uploadAccepted = true;
+                uploadIsFirmware = true;
+                uploadHttpStatus = 200;
+                uploadHttpMessage = "Firmware saved. Updating...";
+            }
+        } else if (filename == "initial.png" || isAllowedFontBinName(filename)) {
+            if (!ensureIzeComposeDirs()) {
+                uploadHttpStatus = 500;
+                uploadHttpMessage = "Could not create ize_compose folders";
+            } else {
+                uploadTargetPath = (filename == "initial.png") ? String(INITIAL_IMAGE_PATH) : (String(FONT_DIR) + "/" + filename);
+                uploadAccepted = true;
+                uploadIsInitialImage = (filename == "initial.png");
+                uploadHttpStatus = 200;
+                uploadHttpMessage = "File saved to SD";
+            }
+        }
+
+        if (uploadAccepted) {
+            if (!sdBackupFile.open(uploadTargetPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC)) {
+                uploadAccepted = false;
+                uploadIsFirmware = false;
+                uploadIsInitialImage = false;
+                pendingSdUpdate = false;
+                uploadHttpStatus = 500;
+                uploadHttpMessage = "Could not create target file";
+                isUpdating = false;
+                updateScreenDrawn = false;
+                if (CalcTaskHandle != NULL) vTaskResume(CalcTaskHandle);
+            }
+        }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (!uploadAccepted) return;
+        if (uploadIsInitialImage && uploadHeaderLen < 8) {
+            int copyLen = min((int)upload.currentSize, 8 - uploadHeaderLen);
+            for (int i = 0; i < copyLen; i++) uploadHeader[uploadHeaderLen + i] = upload.buf[i];
+            uploadHeaderLen += copyLen;
+        }
+        if (sdBackupFile.isOpen()) sdBackupFile.write(upload.buf, upload.currentSize);
+    } else if (upload.status == UPLOAD_FILE_END) {
+        if (!uploadAccepted) {
+            isUpdating = false;
+            updateScreenDrawn = false;
+            if (CalcTaskHandle != NULL) vTaskResume(CalcTaskHandle);
+            return;
+        }
+
+        if (sdBackupFile.isOpen()) sdBackupFile.close();
+
+        if (uploadIsInitialImage && !isUploadedPng()) {
+            SD.remove(uploadTargetPath.c_str());
+            isUpdating = false;
+            updateScreenDrawn = false;
+            uploadHttpStatus = 400;
+            uploadHttpMessage = "initial.png is not a PNG file";
+            if (CalcTaskHandle != NULL) vTaskResume(CalcTaskHandle);
+            return;
+        }
+
+        if (uploadIsFirmware) {
+            pendingSdUpdate = true;
+        } else {
+            if (uploadIsInitialImage) {
+                preloadInitialImage();
+            } else {
+                loadFontToPSRAM(currentFontSlot);
+                if (font_ptr) u8g2_for_adafruit_gfx.setFont(font_ptr);
+            }
+            isUpdating = false;
+            updateScreenDrawn = false;
+        }
+
+        if (CalcTaskHandle != NULL) vTaskResume(CalcTaskHandle);
+    }
+}
+
+void setupWiFi() {
+    WiFi.softAPdisconnect(true);
+    WiFi.disconnect(true, true);
+    WiFi.mode(WIFI_AP); 
+    delay(200);
+
+    IPAddress local_IP(192, 168, 4, 1);
+    IPAddress gateway(192, 168, 4, 1);
+    IPAddress subnet(255, 255, 255, 0);
+    WiFi.softAPConfig(local_IP, gateway, subnet);
+
+    WiFi.softAP(ssid, password);
+
+    if (MDNS.begin("izecompose")) {
+        MDNS.addService("http", "tcp", 80); 
+    }
+    WiFi.setTxPower(WIFI_POWER_15dBm);
+    webServerUpdateOnly = (updateState == UPD_WIFI_WAITING);
+
+    server.on("/", handleRoot);
+    server.on("/read", handleRead);
+    server.on("/download", handleDownload);
+    server.on("/delete", handleDelete);
+    server.on("/uploadText", HTTP_POST, handleTextUploadComplete, handleTextUpload);
+
+    server.on("/update", HTTP_POST, handleWebServerUpdate, handleWebServerUpload);
+
+    server.begin();
+    
+} 
+
+String getAccentChar(char base, int mode, int cycle) {
+    int idx = cycle - 1;
+    if (mode == 1) { 
+        if (base == 'a') { String arr[] = {"\xC3\xA1", "\xC3\xA0", "\xC3\xA2", "\xC3\xA4", "\xC3\xA3", "\xC3\xA6", "a"}; return arr[idx % 7]; }
+        if (base == 'A') { String arr[] = {"\xC3\x81", "\xC3\x80", "\xC3\x82", "\xC3\x84", "\xC3\x83", "\xC3\x86", "A"}; return arr[idx % 7]; }
+        if (base == 'e') { String arr[] = {"\xC3\xA9", "\xC3\xA8", "\xC3\xAA", "\xC3\xAB", "e"}; return arr[idx % 5]; }
+        if (base == 'E') { String arr[] = {"\xC3\x89", "\xC3\x88", "\xC3\x8A", "\xC3\x8B", "E"}; return arr[idx % 5]; }
+        if (base == 'i') { String arr[] = {"\xC3\xAD", "\xC3\xAC", "\xC3\xAE", "\xC3\xAF", "\xC4\xB1", "i"}; return arr[idx % 6]; } 
+        if (base == 'I') { String arr[] = {"\xC3\x8D", "\xC3\x8C", "\xC3\x8E", "\xC3\x8F", "\xC4\xB0", "I"}; return arr[idx % 6]; } 
+        if (base == 'o') { String arr[] = {"\xC3\xB3", "\xC3\xB2", "\xC3\xB4", "\xC3\xB6", "\xC3\xB5", "\xC5\x93", "o"}; return arr[idx % 7]; }
+        if (base == 'O') { String arr[] = {"\xC3\x93", "\xC3\x92", "\xC3\x94", "\xC3\x96", "\xC3\x95", "\xC5\x92", "O"}; return arr[idx % 7]; }
+        if (base == 'u') { String arr[] = {"\xC3\xBA", "\xC3\xB9", "\xC3\xBB", "\xC3\xBC", "u"}; return arr[idx % 5]; }
+        if (base == 'U') { String arr[] = {"\xC3\x9A", "\xC3\x99", "\xC3\x9B", "\xC3\x9C", "U"}; return arr[idx % 5]; }
+        if (base == 'c') { String arr[] = {"\xC3\xA7", "\xC4\x87", "\xC4\x8D", "c"}; return arr[idx % 4]; } 
+        if (base == 'C') { String arr[] = {"\xC3\x87", "\xC4\x86", "\xC4\x8C", "C"}; return arr[idx % 4]; } 
+        if (base == 'n') { String arr[] = {"\xC3\xB1", "n"}; return arr[idx % 2]; }
+        if (base == 'N') { String arr[] = {"\xC3\x91", "N"}; return arr[idx % 2]; }
+        if (base == 's') { String arr[] = {"\xC3\x9F", "\xC5\xA1", "\xC5\x9B", "\xC5\x9F", "s"}; return arr[idx % 5]; } 
+        if (base == 'S') { String arr[] = {"\xC5\xA0", "\xC5\x9A", "\xC5\x9E", "S"}; return arr[idx % 4]; } 
+        if (base == 'd') { String arr[] = {"\xC4\x91", "d"}; return arr[idx % 2]; } 
+        if (base == 'D') { String arr[] = {"\xC4\x90", "D"}; return arr[idx % 2]; } 
+        if (base == 'z') { String arr[] = {"\xC5\xBE", "\xC5\xBA", "z"}; return arr[idx % 3]; } 
+        if (base == 'Z') { String arr[] = {"\xC5\xBD", "\xC5\xB9", "Z"}; return arr[idx % 3]; } 
+        if (base == 'g') { String arr[] = {"\xC4\x9F", "g"}; return arr[idx % 2]; } 
+        if (base == 'G') { String arr[] = {"\xC4\x9E", "G"}; return arr[idx % 2]; } 
+    }
+    return "";
+}
+
+String getSdFirmwarePath() {
+    if (SD.exists(FIRMWARE_UPDATE_PATH)) return FIRMWARE_UPDATE_PATH;
+    return "";
+}
+
+void performSdOta() {
+    String path = getSdFirmwarePath();
+    if (path == "") {
+        return;
+    }
+    SdFile f;
+    
+    
+    if (!f.open(path.c_str(), O_RDONLY)) {
+        return;
+    }
+    
+    
+    size_t fSize = f.fileSize(); 
+    isUpdating = true;
+    needUpdate = true;
+    
+    if (!Update.begin(fSize)) {
+        Update.printError(Serial);
+        f.close();
+        isUpdating = false;
+        updateScreenDrawn = false;
+        return;
+    }
+    
+    uint8_t buf[512];
+    int n;
+    
+    
+    while ((n = f.read(buf, sizeof(buf))) > 0) {
+        if (Update.write(buf, n) != n) {
+            Update.printError(Serial);
+            f.close();
+            isUpdating = false;
+            updateScreenDrawn = false;
+            return;
+        }
+        yield();
+    }
+    f.close();
+    if (Update.end(true)) {
+        SD.remove(path);               
+        delay(500);
+        ESP.restart();
+    } else {
+        Update.printError(Serial);
+        isUpdating = false;
+        updateScreenDrawn = false;
+    }
+}
+
+
+
+KeyboardLayoutId getSelectedKeyboardLayoutId() {
+    if (!isKoreanMode) return englishLayoutIndex <= 0 ? KB_DVORAK : KB_QWERTY;
+    if (keyboardLayoutIndex < 2 || keyboardLayoutIndex >= KEYBOARD_LAYOUT_TOTAL) keyboardLayoutIndex = 2;
+    return KEYBOARD_LAYOUTS[keyboardLayoutIndex].id;
+}
+
+KeyEngineScript getSelectedKeyEngine() {
+    KeyboardLayoutId id = getSelectedKeyboardLayoutId();
+    if (id == KB_KOREAN) return KEY_ENGINE_KOREAN;
+    if (id == KB_ARABIC || id == KB_KURDISH_ARABIC || id == KB_PASHTO || id == KB_PERSIAN || id == KB_URDU) return KEY_ENGINE_ARABIC;
+    if (id == KB_HEBREW) return KEY_ENGINE_HEBREW;
+    if (id == KB_BENGALI || id == KB_DEVANAGARI || id == KB_GUJARATI || id == KB_KANNADA || id == KB_MALAYALAM || id == KB_NEPALI || id == KB_PUNJABI || id == KB_TAMIL || id == KB_TELUGU) return KEY_ENGINE_INDIC;
+    if (id == KB_THAI) return KEY_ENGINE_THAI;
+    if (id == KB_JAPAN) return KEY_ENGINE_JAPANESE;
+    if (id == KB_MYANMAR) return KEY_ENGINE_MYANMAR;
+    if (id == KB_KHMER) return KEY_ENGINE_KHMER;
+    if (id == KB_LAO) return KEY_ENGINE_LAO;
+    if (id == KB_TIBETAN) return KEY_ENGINE_TIBETAN;
+    if (id == KB_SINHALA) return KEY_ENGINE_SINHALA;
+    if (id == KB_ETHIOPIC) return KEY_ENGINE_ETHIOPIC;
+    return KEY_ENGINE_NONE;
+}
+
+String getKeyboardMappedInput(byte k, bool shift, bool alt, const char* engMap, const char* shiftMap, size_t mapSize, char fallback) {
+    if (k >= mapSize) return fallback == 0 ? String("") : String(fallback);
+    char base = engMap[k];
+    if (base == 0 || base == '\b' || base == '\t' || base == '\n' || base == ' ') return fallback == 0 ? String("") : String(fallback);
+    char keyBuf[2] = {base, 0};
+    uint8_t total = 0;
+    KeyboardLayoutId layoutId = getSelectedKeyboardLayoutId();
+    const KeyboardKeyMap* map = keyboardGetMap(layoutId, total);
+    for (uint8_t i = 0; i < total; i++) {
+        if (strcmp(map[i].key, keyBuf) == 0) {
+            const char* value = alt ? (shift ? map[i].altShift : map[i].alt) : (shift ? map[i].shift : map[i].normal);
+            if (value == nullptr && shift && !alt) value = map[i].normal;
+            if (value == nullptr && shift && alt) value = map[i].alt;
+            if (value == nullptr && layoutId == KB_ETHIOPIC && !shift && !alt && (base == 'e' || base == 'u' || base == 'i' || base == 'o' || base == 'a')) return String(base);
+            if (value == nullptr && !alt && fallback != 0) return String(fallback);
+            if (value == nullptr) return String("");
+            return String(value);
+        }
+    }
+    return fallback == 0 ? String("") : String(fallback);
+}
+
+char getAccentBaseFromInserted(const String& inserted) {
+    if (inserted.length() != 1) return 0;
+    char c = inserted[0];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) return c;
+    return 0;
+}
+
+void showInitialImage() { 
+    flushKorean(); 
+    display.clearDisplay(); 
+
+    if (imgBuffer) {
+        int16_t x = (display.width() - 800) / 2;
+        int16_t y = (display.height() - 600) / 2;
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+
+        display.image.drawPngFromBuffer(imgBuffer, imgSize, x, y, true, false);
+    }
+
+    display.display(); 
+    delay(1000); 
+
+    
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+    esp_sleep_enable_ext0_wakeup(WAKE_BUTTON_PIN, 0);
+    esp_light_sleep_start(); 
+
+    
+    display.clearDisplay(); 
+    display.fillRect(0, 0, display.width(), display.height(), WHITE); 
+    while (Serial.available() > 0) Serial.read(); 
+    currentMode = TYPING_MODE; 
+    needUpdate = true; 
+    statusBarNeedsUpdate = true; 
+}
+
+void loop() {
+if (savedMessageVisible && millis() - showSavedMessageTime >= 2000) {
+    savedMessageVisible = false;
+    needUpdate = true;
+    statusBarNeedsUpdate = true;
+}
+
+if (currentNetSubMode == NET_WIFI || updateState == UPD_WIFI_WAITING) {
+    server.handleClient(); 
+    }
+    
+    if (updateState == UPD_WIFI_WAITING) {
+        server.handleClient(); 
+        
+        while (Serial.available() > 0) {
+            byte k = Serial.read();
+            if (k == 246) { 
+                WiFi.softAPdisconnect(true);
+                WiFi.mode(WIFI_OFF);
+        updateState = UPD_NONE;
+        webServerUpdateOnly = false;
+        pinInputBuffer = "";
+                otaPinCode = "";
+                needUpdate = true;
+                break;
+            }
+        }
+        return;
+    }
+
+if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) { 
+    __atomic_store_n(&networkExitRequested, false, __ATOMIC_SEQ_CST);  
+    WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_OFF); btStop();
+        bleStarted = false;
+        currentNetSubMode = NET_MAIN;
+        isFirmwareUpdateMode = false;
+        updateState = UPD_NONE;
+        webServerUpdateOnly = false;
+        needUpdate = true;
+        statusBarNeedsUpdate = true;
+    }
+
+    if (isUpdating) {
+
+    
+        if (!updateScreenDrawn) {
+            display.fillRect(0, 0, display.width(), display.height(), WHITE);
+            printCleanText(u8g2_for_adafruit_gfx, "Updating... Rebooting when done.", MARGIN_X, display.height() / 2);
+            display.display();
+            updateScreenDrawn = true;
+        }
+        if (currentNetSubMode == NET_WIFI) server.handleClient();
+        yield(); 
+        return;
+    }
+
+    if (updateState == UPD_SD_RUNNING) {
+
+            
+            display.fillRect(0, 0, display.width(), display.height(), WHITE);
+            printCleanText(u8g2_for_adafruit_gfx, "Updating... Rebooting when done.", MARGIN_X, display.height() / 2);
+            display.display();
+            performSdOta();
+            return;
+        }
+
+    
+    if (updateState == UPD_PIN_INPUT) {
+        
+        if (needUpdate) {
+            display.fillRect(0, 0, display.width(), display.height(), WHITE);
+            String msg1 = "Enter 4-digit PIN for web update:";
+            String msg2 = "";
+            for (int i = 0; i < 4; i++) msg2 += (i < pinInputBuffer.length() ? "*" : "_");
+            printCleanText(u8g2_for_adafruit_gfx, msg1, MARGIN_X, display.height()/2 - 20);
+            printCleanText(u8g2_for_adafruit_gfx, msg2, MARGIN_X, display.height()/2 + 10);
+            display.partialUpdate();
+            needUpdate = false;
+        }
+
+        while (Serial.available() > 0) {
+
+            byte k = Serial.read();
+            const char engMap[] = {'`','1','2','3','4','5','6','7','8','9','0','-','=','\b','\t','q','w','e','r','t','y','u','i','o','p','[',']','\\',0,'a','s','d','f','g','h','j','k','l',';','\'','\n',0,'z','x','c','v','b','n','m',',','.','/',0,0,0,0,0,' ',0,0,0};
+            char c = (k < sizeof(engMap)) ? engMap[k] : 0;
+            if (c >= '0' && c <= '9' && pinInputBuffer.length() < 4) {
+                pinInputBuffer += c;
+                needUpdate = true;
+            }
+            if (k == 13 && pinInputBuffer.length() > 0) { 
+                pinInputBuffer.remove(pinInputBuffer.length() - 1);
+                needUpdate = true;
+            }
+            if (pinInputBuffer.length() == 4) {
+                otaPinCode = pinInputBuffer;
+                updateState = UPD_WIFI_WAITING;
+                setupWiFi();
+                needUpdate = true;
+                break;
+            }
+            if (k == 246) {
+                updateState = UPD_NONE;
+                pinInputBuffer = "";
+                needUpdate = true;
+                break;
+            }
+        }
+        return;
+    }
+  
+  while (Serial.available() > 0) {
+
+    byte k = Serial.read(); 
+    char real = 0;
+    lastKeyPress = millis(); 
+    if (currentNetSubMode == NET_MAIN) {
+        needUpdate = true; 
+        statusBarNeedsUpdate = true;
+    } else {
+        needUpdate = false;
+        statusBarNeedsUpdate = false;
+    }
+    
+    if (k == 240) { isShiftPressed = true; continue; } 
+    if (k == 241) { isShiftPressed = false; continue; } 
+    if (k == 242) { isCtrlPressed = true; continue; } 
+    if (k == 243) { isCtrlPressed = false; continue; }
+
+    if (k == 244) { 
+        isAltPressed = true;
+        
+        KeyboardLayoutId activeLayout = getSelectedKeyboardLayoutId();
+        if ((activeLayout == KB_QWERTY || activeLayout == KB_DVORAK) && (millis() - lastTypingTime <= 3000)) {
+            accentCycleIdx++;
+            String newChar = getAccentChar(lastBaseChar, 1, accentCycleIdx);
+            if (newChar != "") {
+                doBackspace(); 
+                insertText(newChar); 
+                lastTypingTime = millis(); 
+                needUpdate = true;
+            }
+        }
+        continue; 
+    } 
+    if (k == 245) { isAltPressed = false; continue; }
+
+    if (k == 28) {
+        isCapsLockOn = !isCapsLockOn;
+        continue; 
+    }
+    const char engMap[] = { '`','1','2','3','4','5','6','7','8','9','0','-','=','\b','\t','q','w','e','r','t','y','u','i','o','p','[',']','\\',0,'a','s','d','f','g','h','j','k','l',';','\'','\n',0,'z','x','c','v','b','n','m',',','.','/',0,0,0,0,0,' ',0,0,0 }; 
+    const char shiftMap[] = { '~','!','@','#','$','%','^','&','*','(',')','_','+','\b','\t','Q','W','E','R','T','Y','U','I','O','P','{','}','|',0,'A','S','D','F','G','H','J','K','L',':','\"','\n',0,'Z','X','C','V','B','N','M','<','>','?',0,0,0,0,0,' ',0,0,0 };
+    
+    
+    if (k < sizeof(engMap)) {
+        char base = engMap[k];
+        
+        if (base >= 'a' && base <= 'z') {
+            
+            real = (isShiftPressed != isCapsLockOn) ? shiftMap[k] : engMap[k];
+        } else {
+            
+            real = isShiftPressed ? shiftMap[k] : engMap[k];
+        }
+    }
+
+        if (k == 56) real = ' '; 
+        
+    
+    if (isCtrlPressed) {
+      if (currentNetSubMode != NET_MAIN && k == 246) {
+          WiFi.softAPdisconnect(true);
+          WiFi.mode(WIFI_OFF);
+          btStop();
+          bleStarted = false;
+          currentNetSubMode = NET_MAIN;
+          isFirmwareUpdateMode = false;
+          updateState = UPD_NONE;
+          webServerUpdateOnly = false;
+          needUpdate = true;
+          statusBarNeedsUpdate = true;
+          continue;
+      }
+      if (real == 'l' || real == 'L') { flushKorean(); isCtrlPressed = false; showInitialImage(); continue; }
+      if (real == 'c' || real == 'C') { flushKorean(); clipboard = fullText; continue; } 
+      if (real == 'v' || real == 'V') { flushKorean(); insertText(clipboard); continue; } 
+      
+      if (real == 's' || real == 'S') { flushKorean(); saveFile(); continue; }
+      if (real == 'n' || real == 'N') { flushKorean(); createNewDoc(); continue; }
+      if (real == 'r' || real == 'R') { flushKorean(); hardRefresh(); continue; }
+      if (real == 'f' || real == 'F') { 
+          flushKorean(); 
+          if (currentMode == SEARCH_MODE) currentMode = TYPING_MODE;
+          else { currentMode = SEARCH_MODE; searchQuery = ""; }
+          needUpdate = true; continue; 
+      }
+      if (k == 57) { moveCursorToLineStart(); continue; } 
+      if (k == 60) { moveCursorToLineEnd(); continue; }   
+      if (k == 58) { moveCursorToParagraphStart(); continue; } 
+      if (k == 59) { moveCursorToParagraphEnd(); continue; }   
+    }
+    if (k == 246) { 
+      if (currentMode == FILE_MENU_MODE && isEditingValue && inSystemSubMenu && (leftMenuIndex == 6 || leftMenuIndex == 7)) {
+        needUpdate = true;
+        continue;
+      }
+      if (currentNetSubMode != NET_MAIN) {
+        needUpdate = false;
+        statusBarNeedsUpdate = false;
+        continue;
+      }
+      if (currentMode == TYPING_MODE) { 
+        flushKorean(); 
+        currentMode = FILE_MENU_MODE; 
+        inSystemSubMenu = false;
+        leftMenuIndex = 0;
+        leftMenuOffset = 0;
+        menuFocusSide = 0;
+        isEditingValue = false;
+        previewEnglishLayoutIndex = englishLayoutIndex;
+        previewKeyboardLayoutIndex = keyboardLayoutIndex;
+        tempNetCursor = currentNetSubMode;
+        refreshFileList(); 
+        rightFileIndex = 1;
+        isDeletingFile = false; } 
+      else {
+        currentMode = TYPING_MODE;
+        isEditingValue = false;
+        isDeletingFile = false;
+        inSystemSubMenu = false;
+        leftMenuOffset = 0;
+      }
+      needUpdate = true;
+      statusBarNeedsUpdate = true;
+      continue; 
+    }
+    if (currentNetSubMode != NET_MAIN) {
+        if (currentNetSubMode == NET_BT_SELECT) {
+            sendBleInput(k, real);
+        }
+        needUpdate = false;
+        statusBarNeedsUpdate = false;
+        continue;
+    } 
+    
+    else if (currentMode == FILE_MENU_MODE) {
+      
+      if (isDeletingFile) { 
+        if (real == '\n') { 
+          SdFile root; if (root.open("/", O_RDONLY)) { 
+            SdFile f; if (f.open(&root, files[rightFileIndex].name.c_str(), O_WRONLY)) { f.remove(); refreshFileList(); if (fileCount == 0) createNewDoc(); if (rightFileIndex > fileCount) rightFileIndex = fileCount; } 
+            root.close(); 
+          } 
+          isDeletingFile = false; 
+        } else if (real == '\b' || k == 58 || k == 59 || k == 57 || k == 60) isDeletingFile = false; 
+        continue; 
+      }
+      if (isEditingValue) {
+        
+        if (inSystemSubMenu) { 
+            switch (leftMenuIndex) {
+                case 1: 
+                    if (k == 57 && displayScale > 0.5) displayScale -= 0.1;
+                    if (k == 60 && displayScale < 3.5) displayScale += 0.1;
+                    break;
+                case 2: 
+                    if (k == 57 && lineSpacing > 0) lineSpacing--;
+                    if (k == 60 && lineSpacing < 30) lineSpacing++;
+                    break;
+                case 3: 
+                    if (k == 57 && letterSpacing > -5) letterSpacing--;
+                    if (k == 60 && letterSpacing < 10) letterSpacing++;
+                    break;
+                case 4: 
+                    if (k == 57 && typingSpeed > 0) typingSpeed--;
+                    if (k == 60 && typingSpeed < 10) typingSpeed++;
+                    break;
+                case 5: 
+                    if (k == 57 && refreshLimit > 10) refreshLimit -= 10;
+                    if (k == 60 && refreshLimit < 5000) refreshLimit += 10;
+                    break;
+                case 6: 
+                    if (k == 57 || k == 60) previewEnglishLayoutIndex = previewEnglishLayoutIndex == 0 ? 1 : 0;
+                    break;
+                case 7: 
+                    if (k == 57 && previewKeyboardLayoutIndex > 0) { 
+                        previewKeyboardLayoutIndex--;
+                        if (previewKeyboardLayoutIndex < 2) previewKeyboardLayoutIndex = KEYBOARD_LAYOUT_TOTAL - 1;
+                    }
+                    if (k == 60) { 
+                        previewKeyboardLayoutIndex++;
+                        if (previewKeyboardLayoutIndex >= KEYBOARD_LAYOUT_TOTAL) previewKeyboardLayoutIndex = 2;
+                    }
+                    break;
+            }
+            if (real == '\n') {
+                if ((leftMenuIndex == 6 || leftMenuIndex == 7) && isEditingValue) {
+                    if (leftMenuIndex == 6) englishLayoutIndex = previewEnglishLayoutIndex <= 0 ? 0 : 1;
+                    if (leftMenuIndex == 7) keyboardLayoutIndex = previewKeyboardLayoutIndex;
+                    isEditingValue = false;
+                    saveSystemSettings();
+                    isCapsLockOn = false;
+                    needUpdate = true;
+                } else {
+                    isEditingValue = !isEditingValue;
+                }
+            }
+        } 
+        
+        else {
+            switch (leftMenuIndex) {
+                case 3: 
+                    if (k == 57) { 
+                        if (tempNetCursor == NET_MAIN) tempNetCursor = NET_BT_SELECT;
+                        else if (tempNetCursor == NET_BT_SELECT) tempNetCursor = NET_WIFI;
+                        else tempNetCursor = NET_MAIN;
+                    } 
+                    if (k == 60) { 
+                        if (tempNetCursor == NET_MAIN) tempNetCursor = NET_WIFI;
+                        else if (tempNetCursor == NET_WIFI) tempNetCursor = NET_BT_SELECT;
+                        else tempNetCursor = NET_MAIN;
+                    }
+                    if (real == '\n') { 
+                        isEditingValue = false;
+                        currentNetSubMode = tempNetCursor;
+                        
+                        if (currentNetSubMode == NET_WIFI) { setupWiFi(); currentMode = TYPING_MODE; }
+                        else if (currentNetSubMode == NET_BT_SELECT) { setupBLE(); currentMode = TYPING_MODE; }
+                        else { WiFi.softAPdisconnect(true); WiFi.mode(WIFI_OFF); btStop(); bleStarted = false; currentMode = TYPING_MODE; }
+                    }
+                    break;
+
+                case 6: 
+                    if (k == 57) { 
+                        autoSleepIndex = (autoSleepIndex <= 0) ? 6 : autoSleepIndex - 1;
+                    }
+                    if (k == 60) { 
+                        autoSleepIndex = (autoSleepIndex + 1) % 7;
+                    }
+                    if (real == '\n'|| real == '\r') { 
+                        isEditingValue = false;
+                        saveSystemSettings();
+                    }
+                    break;
+            }
+        }
+        
+        needUpdate = true; 
+        continue; 
+    }
+    if (k == 57) { menuFocusSide = 0; needUpdate = true; } 
+    if (k == 60) { menuFocusSide = 1; needUpdate = true; }
+
+    if (menuFocusSide == 0) {
+            int menuStep = baseFontSize + lineSpacing + 8;
+            int menuTopY = inSystemSubMenu ? 60 + menuStep : 100;
+            int maxVisibleMenu = ((display.height() / displayScale) - menuTopY - 10) / menuStep;
+            if (maxVisibleMenu < 1) maxVisibleMenu = 1;
+            int menuCount = inSystemSubMenu ? 9 : 7;
+            if (leftMenuIndex >= menuCount) leftMenuIndex = menuCount - 1;
+            int maxOffset = menuCount - maxVisibleMenu;
+            if (maxOffset < 0) maxOffset = 0;
+            if (leftMenuOffset > maxOffset) leftMenuOffset = maxOffset;
+
+            if (k == 58 && leftMenuIndex > 0) { 
+                leftMenuIndex--; 
+                if (leftMenuIndex < leftMenuOffset) leftMenuOffset = leftMenuIndex;
+            } 
+            if (k == 59 && leftMenuIndex < menuCount - 1) { 
+                leftMenuIndex++; 
+                if (leftMenuIndex >= leftMenuOffset + maxVisibleMenu) {
+                    leftMenuOffset = leftMenuIndex - maxVisibleMenu + 1;
+                }
+            }
+            needUpdate = true;
+          if (real == '\n') { 
+            if (!inSystemSubMenu) { 
+                
+                if (leftMenuIndex == 0) createNewDoc(); 
+                else if (leftMenuIndex == 1) { saveFile(); currentMode = TYPING_MODE; } 
+                else if (leftMenuIndex == 2) { countMode = (countMode + 1) % 3; needUpdate = true; }
+                else if (leftMenuIndex == 3) { 
+                    isEditingValue = true;
+                }
+                else if (leftMenuIndex == 4) { inSystemSubMenu = true; leftMenuIndex = 0; leftMenuOffset = 0; isEditingValue = false; } 
+                else if (leftMenuIndex == 5) { currentMode = TYPING_MODE; showInitialImage(); ESP.restart(); } 
+                else if (leftMenuIndex == 6) { 
+                    isEditingValue = true;
+                }
+            } 
+            else { 
+                
+                if (leftMenuIndex == 0) { 
+                    
+                    inSystemSubMenu = false;
+                    leftMenuIndex = 3; 
+                    leftMenuOffset = 0;
+                    isEditingValue = false;
+                } 
+                else if (leftMenuIndex >= 1 && leftMenuIndex <= 8) {
+                    if (isEditingValue) {
+                        
+                        if (leftMenuIndex == 6 || leftMenuIndex == 7) {
+                            if (leftMenuIndex == 6) englishLayoutIndex = previewEnglishLayoutIndex <= 0 ? 0 : 1;
+                            if (leftMenuIndex == 7) keyboardLayoutIndex = previewKeyboardLayoutIndex;
+                            isEditingValue = false;
+                            saveSystemSettings();
+                            needUpdate = true;
+                            isCapsLockOn = false;
+                        } else if (leftMenuIndex == 8) {
+                            if (getSdFirmwarePath() != "") {
+                                currentMode = TYPING_MODE;
+                                updateState = UPD_SD_RUNNING;
+                                needUpdate = true;
+                            } else {
+                                pinInputBuffer = "";
+                                updateState = UPD_PIN_INPUT;
+                                currentMode = TYPING_MODE;
+                                needUpdate = true;
+                            }
+                        } else {
+                            isEditingValue = false;    
+                        }
+                    } else {
+                        if (leftMenuIndex == 6) previewEnglishLayoutIndex = englishLayoutIndex;
+                        if (leftMenuIndex == 7) previewKeyboardLayoutIndex = keyboardLayoutIndex;
+                        isEditingValue = true;         
+                    }                
+                }
+                
+            }
+            needUpdate = true;
+            statusBarNeedsUpdate = true;
+            continue;
+        }
+        } else {
+          
+          int maxVisibleItems = ((display.height() / displayScale) - 70) / (baseFontSize + lineSpacing + 6);
+          if (maxVisibleItems < 1) maxVisibleItems = 1;
+          
+          if (k == 58 && rightFileIndex > 1) { 
+              rightFileIndex--;
+              
+              if (rightFileIndex <= fileScrollOffset) fileScrollOffset = rightFileIndex - 1;
+          }
+          if (k == 59 && rightFileIndex < fileCount) { 
+              rightFileIndex++;
+              
+              if (rightFileIndex > fileScrollOffset + maxVisibleItems) {
+                  fileScrollOffset = rightFileIndex - maxVisibleItems;
+              }
+          }
+          if (fileScrollOffset < 0) fileScrollOffset = 0;
+          
+          if (real == '\n' || k == 40) {
+              if (fileCount > 0 && rightFileIndex <= fileCount) {
+                  currentFileName = files[rightFileIndex].name;
+                  loadFile();
+                  currentMode = TYPING_MODE;
+                  needUpdate = true;
+                  continue;
+              }
+          }
+          if (real == '\b') {
+              isDeletingFile = true;
+              needUpdate = true;
+          }
+        } continue;
+    }
+     else {
+      
+      if (k == 57 || k == 58 || k == 59 || k == 60) {
+          flushKorean();
+      }
+      if (k == 58) { int ls = fullText.lastIndexOf('\n', cursorPos - 1); if (ls != -1) { int lineStart = fullText.lastIndexOf('\n', ls - 1) + 1; int col = utf8ColumnBetween(fullText, ls + 1, cursorPos); cursorPos = utf8OffsetForColumn(fullText, lineStart, ls, col); } continue; } 
+      if (k == 59) { 
+        int ns = fullText.indexOf('\n', cursorPos); 
+        if (ns != -1) { 
+          int ne = fullText.indexOf('\n', ns + 1); 
+          if (ne == -1) ne = fullText.length(); 
+          int nl = ne - (ns + 1); 
+          int ls = fullText.lastIndexOf('\n', cursorPos - 1); 
+          int col = utf8ColumnBetween(fullText, ls + 1, cursorPos); 
+          cursorPos = utf8OffsetForColumn(fullText, ns + 1, ne, col); 
+          } 
+          else if (fullText.indexOf('\n', cursorPos) == -1) {
+              cursorPos = fullText.length();
+          }
+
+          needUpdate = true;
+          continue; 
+          }
+      if (k == 57) { if (cursorPos > 0) cursorPos = utf8PrevStart(fullText, cursorPos); continue; }
+      if (k == 60) { if (cursorPos < fullText.length()) cursorPos = utf8NextStart(fullText, cursorPos); continue; }
+      if (real == '\b') doBackspace();
+      else if (real != 0 || k == 56) { 
+        String insertedForAccent = "";
+        if (isCtrlPressed && real == ' ') { 
+            flushKorean(); 
+            isKoreanMode = !isKoreanMode; 
+            isCapsLockOn = false;   
+            isShiftPressed = false; 
+            continue; 
+        } 
+        if (real == ' ' || real == '\n' || real == '\t') { 
+            flushKorean();
+            
+            if (currentMode == SEARCH_MODE) {
+                if (real == '\t') { 
+                    currentMode = TYPING_MODE; 
+                    needUpdate = true; 
+                    continue; 
+                }
+                if (real == '\n') { 
+                    int found = fullText.indexOf(searchQuery, cursorPos);
+                    if (found == -1) found = fullText.indexOf(searchQuery, 0); 
+                    if (found != -1) cursorPos = found + searchQuery.length();
+                    needUpdate = true; 
+                    continue;
+                }
+            }
+            insertedForAccent = (real == '\t') ? "" : String(real);
+            insertText((real == '\t') ? "    " : String(real));
+        } 
+        else if (isKoreanMode && getSelectedKeyboardLayoutId() == KB_KOREAN) {
+          processKoreanInput(k, real, isShiftPressed, engMap, shiftMap, sizeof(engMap));
+        } else {
+            
+            String insertStr = getKeyboardMappedInput(k, isShiftPressed, isAltPressed, engMap, shiftMap, sizeof(engMap), real);
+            if (insertStr != "") {
+                String processedStr = (currentMode == SEARCH_MODE) ? insertStr : keyEngineProcessMappedText(getSelectedKeyEngine(), insertStr);
+                insertedForAccent = processedStr;
+                insertText(processedStr);
+                if (currentMode != SEARCH_MODE) keyEngineAfterEdit(getSelectedKeyEngine());
+            }
+        }
+
+        
+        
+        KeyboardLayoutId activeLayout = getSelectedKeyboardLayoutId();
+        char accentBase = getAccentBaseFromInserted(insertedForAccent);
+        if ((activeLayout == KB_QWERTY || activeLayout == KB_DVORAK) && accentBase != 0) {
+            lastTypingTime = millis();
+            lastBaseChar = accentBase;
+            accentCycleIdx = 0;
+        } else if (real != 0 && real != ' ' && real != '\n' && real != '\t') {
+            lastBaseChar = 0;
+        }
+      } 
+      
+      charCounter++;
+      if (typingSpeed > 0) delay(typingSpeed * 5); 
+      else yield();
+    }
+  } 
+
+  if (needUpdate) {
+    rtlTextMode = isKoreanMode && keyboardLayoutIsRightToLeft(getSelectedKeyboardLayoutId());
+    if (!needCountUpdate) {
+        portENTER_CRITICAL(&timerMux); 
+        calcBuffer = fullText;
+        portEXIT_CRITICAL(&timerMux);  
+        needCountUpdate = true;
+    }
+    
+    
+   
+    int menuVisibleStep = baseFontSize + lineSpacing + 8;
+    int renderMenuTopY = inSystemSubMenu ? 60 + menuVisibleStep : 100;
+    int maxVisibleMenu = ((display.height() / displayScale) - renderMenuTopY - 10) / menuVisibleStep; 
+    if (maxVisibleMenu < 1) maxVisibleMenu = 1;
+    bool doFullRefresh = false;
+    if (currentMode == TYPING_MODE && refreshLimit > 0 && charCounter >= refreshLimit) { doFullRefresh = true; charCounter = 0; }
+    bool modeChanged = (currentMode != lastMode || currentNetSubMode != lastNetSubMode);
+    if (modeChanged) {
+        display.fillRect(0, 0, display.width(), display.height(), WHITE);
+        lastSy = -1;
+        lastCursorY = -1;
+    }
+
+    if (currentNetSubMode != NET_MAIN) {
+        
+        int statusBarBottom = (int)(45 * displayScale);
+        display.fillRect(0, statusBarBottom, display.width(), display.height() - statusBarBottom, WHITE);
+
+        
+        u8g2_for_adafruit_gfx.setFont(Typewriter_16px);
+        int infoY = statusBarBottom + 40;
+        if (currentNetSubMode == NET_BT_SELECT) {
+            printCleanText(u8g2_for_adafruit_gfx, "Bluetooth Keyboard Mode", MARGIN_X, infoY);
+            printCleanText(u8g2_for_adafruit_gfx, bleKeyboard.isConnected() ? "Connected: Type to computer" : "Pair IZE Compose on your computer", MARGIN_X, infoY + 25);
+            printCleanText(u8g2_for_adafruit_gfx, "EXIT: Ctrl + Menu", MARGIN_X, infoY + 50);
+        } else if (isFirmwareUpdateMode) {
+            printCleanText(u8g2_for_adafruit_gfx, "Update Mode (192.168.4.1/update)", MARGIN_X, infoY);
+            printCleanText(u8g2_for_adafruit_gfx, "EXIT: Ctrl + Menu", MARGIN_X, infoY + 25);
+        } else {
+            printCleanText(u8g2_for_adafruit_gfx, "Network Mode", MARGIN_X, infoY);
+            printCleanText(u8g2_for_adafruit_gfx, "EXIT: Ctrl + Menu", MARGIN_X, infoY + 25);
+            printCleanText(u8g2_for_adafruit_gfx, "IZEcompose 00009888, 192.168.4.1", MARGIN_X, infoY + 50);
+        }
+    }
+    else if (currentMode == FILE_MENU_MODE) {
+        display.clearDisplay(); lastSy = -1; 
+        u8g2_for_adafruit_gfx.setForegroundColor(BLACK); 
+        u8g2_for_adafruit_gfx.setBackgroundColor(WHITE); 
+        printDualFont(u8"Iźe", 50, 28, true);
+        int composeX = (int)(50 * displayScale);
+        int composeY = (int)(38 * displayScale);
+        int composeW = (int)(112 * displayScale);
+        int composeH = (int)((baseFontSize + lineSpacing + 8) * displayScale);
+        display.drawRect(composeX - (int)(4 * displayScale), composeY, composeW, composeH, BLACK);
+        printDualFont("compose", 50, 58, true);
+       
+        String m_main = "New,Save,Count,Network,System Set >,Sleep,Auto Sleep";
+        
+        String m_sys = "< Back,Size,Line Sp,Char Sp,Speed,Refresh,English,Language,Update";
+
+        int menuCount = inSystemSubMenu ? 9 : 7; 
+        if (leftMenuIndex >= menuCount) leftMenuIndex = menuCount - 1;
+        int maxOffset = menuCount - maxVisibleMenu;
+        if (maxOffset < 0) maxOffset = 0;
+        if (leftMenuOffset > maxOffset) leftMenuOffset = maxOffset;
+        String targetM = inSystemSubMenu ? m_sys : m_main;
+
+int menuStep = baseFontSize + lineSpacing + 8;
+int menuY = inSystemSubMenu ? 60 + menuStep : 100;
+for(int i = leftMenuOffset; i < menuCount; i++) {    if (i >= leftMenuOffset + maxVisibleMenu) break;
+
+    
+    String lbl = getValue(targetM, ',', i);
+    if (lbl == "") continue; 
+
+    
+    if (inSystemSubMenu) {
+        String valStr = "";
+        if(i == 1)      valStr = String(displayScale, 1);
+        else if(i == 2) valStr = String(lineSpacing);
+        else if(i == 3) valStr = String(letterSpacing);
+        else if(i == 4) valStr = String(typingSpeed);
+        else if(i == 5) valStr = String(refreshLimit);
+        
+        else if(i == 6) valStr = "";
+        else if(i == 7) valStr = "";
+        
+        if (valStr != "") {
+            if (isEditingValue && leftMenuIndex == i) {
+                lbl += " < " + valStr + " >";
+            } else {
+                lbl += "   " + valStr + "   ";
+            }
+        }
+        
+        if (i == 8) {
+            lbl += " " + String(FIRMWARE_VERSION); 
+        }
+
+    } 
+    
+    else {
+        if (i == 2) { 
+            
+            if (countMode == 0) lbl += " [Chars]";
+            else if (countMode == 1) lbl += " [Words]";
+            else lbl += " [OFF]";
+        }
+        if (i == 6) { 
+            lbl = "Auto Sleep " + getAutoSleepDisplayLabel();
+            if (isEditingValue && leftMenuIndex == i) lbl += " *";
+        }
+        if(i == 3) { 
+            String netStr = "";
+            if(tempNetCursor == NET_MAIN) netStr = "OFF";
+            else if(tempNetCursor == NET_BT_SELECT) netStr = (bleKeyboard.isConnected() ? "BLE:OK" : "BLE");
+            else if(tempNetCursor == NET_WIFI) netStr = "WIFI";
+            
+            if (isEditingValue && leftMenuIndex == i) lbl += " < " + netStr + " >";
+            else lbl += "   " + netStr + "   ";
+        }
+    }
+
+    
+    printMenuEntry(lbl, 25, menuY, (menuFocusSide == 0 && leftMenuIndex == i), false);
+    if (inSystemSubMenu && (i == 6 || i == 7)) {
+        String nameLine = (i == 6) ? (isEditingValue && leftMenuIndex == i ? getPreviewEnglishKeyboardModeName() : getEnglishKeyboardModeName()) : (isEditingValue && leftMenuIndex == i ? getPreviewKeyboardModeName() : getKeyboardModeName());
+        String keyboardLine = isEditingValue && leftMenuIndex == i ? "< " + nameLine + " >" : "  " + nameLine;
+        printMenuEntry(keyboardLine, 25, menuY + menuStep, (menuFocusSide == 0 && leftMenuIndex == i), false);
+        menuY += menuStep;
+    }
+    menuY += menuStep;
+
+        }
+        if (!(inSystemSubMenu && isEditingValue && (leftMenuIndex == 6 || leftMenuIndex == 7))) {
+            u8g2_for_adafruit_gfx.setForegroundColor(BLACK); 
+            u8g2_for_adafruit_gfx.setBackgroundColor(WHITE); 
+            printDualFont("=== DOCUMENTS ===", 245, 30, true); 
+            
+            int maxVisibleItems = ((display.height() / displayScale) - 70) / (baseFontSize + lineSpacing + 6);
+            for (int f=1; f<=fileCount; f++) { 
+                if (f > fileScrollOffset && f <= fileScrollOffset + maxVisibleItems) { 
+                    String docLabel = "";
+                    
+                    
+                    if (isDeletingFile && menuFocusSide == 1 && rightFileIndex == f) {
+                        docLabel = "Delete? (Enter: Yes / Other: Cancel)";
+                    } else {
+                        
+                        docLabel = String(f) + ". " + files[f].name + " [" + String(files[f].sizeKB, 1) + "KB] | " + files[f].preview;
+                    }
+                    
+                    printMenuEntry(docLabel, 225, 60 + ((f-fileScrollOffset-1)*(baseFontSize + lineSpacing + 6)), (menuFocusSide == 1 && rightFileIndex == f), true);
+                } 
+            }
+        }
+    } 
+    else {adjustViewBottom();    
+        
+        
+        String d = fullText;
+        String composing = "";
+        if (currentMode == TYPING_MODE && (cho != -1 || jung != -1)) {
+            composing = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+        }
+        
+        int targetIdx = cursorPos + composing.length();
+        d = d.substring(0, cursorPos) + composing + d.substring(cursorPos);
+
+        
+        int renderEnd = viewBottomIdx;
+        if (currentMode == TYPING_MODE && cursorPos <= viewBottomIdx) renderEnd += composing.length();
+        if (renderEnd > d.length()) renderEnd = d.length();
+        int statusBarBottom = (int)(45 * displayScale);
+        int contentRight = (int)((display.width() / displayScale) - RIGHT_EDGE_MARGIN);
+        int maxWidth = contentRight - MARGIN_X;
+
+        // 커서가 속한 단락의 시작 바이트 위치
+        int cursorParaStart = 0;
+        for (int ci = cursorPos; ci > 0; ci--) {
+            if (d[ci-1] == '\n') { cursorParaStart = ci; break; }
+        }
+        // 이전 프레임에 커서 Y가 있으면 해당 영역만 클리어, 아니면 전체 클리어
+        bool cursorAfterNewline = (cursorPos > 0 && cursorPos <= d.length() && d[cursorPos - 1] == '\n');
+        bool fastRender = (currentMode == TYPING_MODE && !doFullRefresh && lastCursorY >= 0 && !cursorAfterNewline);
+        if (fastRender) {
+            int clearTopPx = (int)((lastCursorY - (baseFontSize + lineSpacing) * 4) * displayScale);
+            if (clearTopPx < statusBarBottom) clearTopPx = statusBarBottom;
+            display.fillRect(0, clearTopPx, display.width(), display.height() - clearTopPx, WHITE);
+        } else {
+            display.fillRect(0, statusBarBottom, display.width(), display.height() - statusBarBottom, WHITE);
+        }
+
+        int currentY = (int)((display.height() / displayScale) - 25);
+        int lastLineEnd = renderEnd;
+        for (int i = renderEnd; i >= 0; i--) {
+            if (i == 0 || d[i-1] == '\n') {
+                // 커서 위 단락 — 화면에 이미 있으므로 건드리지 않음
+                if (fastRender && i < cursorParaStart) break;
+
+                String para = d.substring(i, lastLineEnd);
+                String lines[40]; 
+                int lineStartIdx[40]; 
+                int lineCount = 0;
+                int visualLineCount = 0;
+                int currentLineWidth = 0; 
+                int currentLineStartK = i; 
+
+                u8g2_for_adafruit_gfx.setFont(Typewriter_16px);
+                
+                if (i >= lastLineEnd) { 
+                    lines[0] = "";
+                    lineStartIdx[0] = 0;
+                    lineCount = 1;
+                    visualLineCount = 1;
+                } else {
+                    
+                    for(int k = i; k < lastLineEnd; ) {
+                        int l = zwUtf8CharLen(d, k);
+                        if (l <= 0) l = 1;
+                        uint32_t cp = zwUtf8Codepoint(d.c_str() + k, l);
+                        int charWidth = zwGlyphAdvance(cp, l, false);
+
+                        if (currentLineWidth + charWidth > maxWidth) {
+                            if (lineCount < 40) {
+                                
+                                lines[lineCount] = d.substring(currentLineStartK, k);
+                                lineStartIdx[lineCount] = currentLineStartK - i;
+                                lineCount++;
+                            } else {
+                                for (int si = 0; si < 39; si++) {
+                                    lines[si] = lines[si + 1];
+                                    lineStartIdx[si] = lineStartIdx[si + 1];
+                                }
+                                lines[39] = d.substring(currentLineStartK, k);
+                                lineStartIdx[39] = currentLineStartK - i;
+                            }
+                            visualLineCount++;
+                            currentLineStartK = k; 
+                            currentLineWidth = charWidth; 
+                        } else {
+                            currentLineWidth += charWidth;
+                        }
+                        k += l;
+                    }
+                    
+                    if (currentLineStartK < lastLineEnd && lineCount < 40) {
+                        lines[lineCount] = d.substring(currentLineStartK, lastLineEnd);
+                        lineStartIdx[lineCount] = currentLineStartK - i;
+                        lineCount++;
+                    } else if (currentLineStartK < lastLineEnd) {
+                        for (int si = 0; si < 39; si++) {
+                            lines[si] = lines[si + 1];
+                            lineStartIdx[si] = lineStartIdx[si + 1];
+                        }
+                        lines[39] = d.substring(currentLineStartK, lastLineEnd);
+                        lineStartIdx[39] = currentLineStartK - i;
+                    }
+                    if (currentLineStartK < lastLineEnd) visualLineCount++;
+                }
+                // 커서 아래 단락 — Y 위치만 추적하고 렌더 스킵
+                if (fastRender && i > cursorParaStart) {
+                    for (int j = 0; j < visualLineCount && currentY >= STATUS_Y + 10; j++)
+                        currentY -= (baseFontSize + lineSpacing);
+                    lastLineEnd = i - 1;
+                    if (currentY < STATUS_Y + 10) break;
+                    continue;
+                }
+                for (int j = lineCount - 1; j >= 0; j--) {
+                    if (currentY > STATUS_Y + 20) {
+                        int lineDrawX = MARGIN_X;
+                        if (rtlTextMode) {
+                            lineDrawX = contentRight - zwMeasureTextWidth(lines[j], false);
+                            if (lineDrawX < MARGIN_X) lineDrawX = MARGIN_X;
+                        }
+                        printCleanText(u8g2_for_adafruit_gfx, lines[j], lineDrawX, currentY, false, contentRight);
+                        
+                        int absLineStart = i + lineStartIdx[j];
+                        int absLineEnd = (j < lineCount - 1) ? (i + lineStartIdx[j+1]) : lastLineEnd;
+                        
+                        if (targetIdx >= absLineStart && targetIdx <= absLineEnd) {
+                            if (targetIdx < absLineEnd || j == lineCount - 1) {
+                                int cursorStrLen = targetIdx - absLineStart;
+                                String beforeCursor = para.substring(lineStartIdx[j], lineStartIdx[j] + cursorStrLen);
+                                
+                                int cursorXOffset = 0;
+                                for(int x = 0; x < beforeCursor.length(); ) {
+                                    int cl = zwUtf8CharLen(beforeCursor, x);
+                                    if (cl <= 0) cl = 1;
+                                    uint32_t cp = zwUtf8Codepoint(beforeCursor.c_str() + x, cl);
+                                    cursorXOffset += zwGlyphAdvance(cp, cl, false);
+                                    x += cl;
+                                }
+                                
+                                if (currentMode == TYPING_MODE) {
+                                    int cursorDrawX = rtlTextMode ? (contentRight - cursorXOffset - 12) : (lineDrawX + cursorXOffset);
+                                    if (cursorDrawX < MARGIN_X) cursorDrawX = MARGIN_X;
+                                    if (cursorDrawX > contentRight - 12) cursorDrawX = contentRight - 12;
+                                    bigDisplay.fillRect(cursorDrawX, currentY + 2, 12, 4, BLACK);
+                                    lastCursorY = currentY; // 다음 프레임 빠른 렌더용
+                                }
+                                else if (currentMode == SEARCH_MODE && searchQuery.length() > 0) {
+                                    int searchStart = targetIdx - searchQuery.length();
+                                    
+                                    
+                                    if (searchStart >= absLineStart && searchStart < absLineEnd) {
+                                        
+                                        
+                                        int startStrLen = searchStart - absLineStart;
+                                        String beforeSearch = para.substring(lineStartIdx[j], lineStartIdx[j] + startStrLen);
+                                        int searchXOffset = 0;
+                                        for(int x = 0; x < beforeSearch.length(); ) {
+                                            int cl = zwUtf8CharLen(beforeSearch, x);
+                                            if (cl <= 0) cl = 1;
+                                            uint32_t cp = zwUtf8Codepoint(beforeSearch.c_str() + x, cl);
+                                            searchXOffset += zwGlyphAdvance(cp, cl, false);
+                                            x += cl;
+                                        }
+
+                                        
+                                        int queryWidth = 0;
+                                        for(int x = 0; x < searchQuery.length(); ) {
+                                            int cl = zwUtf8CharLen(searchQuery, x);
+                                            if (cl <= 0) cl = 1;
+                                            uint32_t cp = zwUtf8Codepoint(searchQuery.c_str() + x, cl);
+                                            queryWidth += zwGlyphAdvance(cp, cl, false);
+                                            x += cl;
+                                        }
+
+                                        
+                                        int searchDrawX = rtlTextMode ? (contentRight - searchXOffset - queryWidth) : (lineDrawX + searchXOffset);
+                                        if (searchDrawX < MARGIN_X) searchDrawX = MARGIN_X;
+                                        if (searchDrawX + queryWidth > contentRight) searchDrawX = contentRight - queryWidth;
+                                        if (searchDrawX < MARGIN_X) searchDrawX = MARGIN_X;
+                                        bigDisplay.fillRect(searchDrawX, currentY - 14, queryWidth, 18, BLACK);
+
+                                        
+                                        u8g2_for_adafruit_gfx.setForegroundColor(WHITE);
+                                        u8g2_for_adafruit_gfx.setBackgroundColor(BLACK);
+                                        
+                                        printDualFont(searchQuery, searchDrawX, currentY);
+
+                                        
+                                        u8g2_for_adafruit_gfx.setForegroundColor(BLACK);
+                                        u8g2_for_adafruit_gfx.setBackgroundColor(WHITE);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    currentY -= (baseFontSize + lineSpacing);
+                    if (currentY < STATUS_Y + 10) break;
+                }
+
+                lastLineEnd = i - 1;
+                if (currentY < STATUS_Y + 10) break; 
+            }
+        }
+        lastSy = 0;
+        
+        if (currentMode == SEARCH_MODE) {
+            int boxW = 360; int boxH = 44;
+            int boxX = (display.width() / UI_SCALE - boxW) / 2;
+            int boxY = (display.height() / UI_SCALE - boxH) / 2; 
+            display.fillRect((int)(boxX * UI_SCALE), (int)(boxY * UI_SCALE), (int)(boxW * UI_SCALE), (int)(boxH * UI_SCALE), BLACK);
+            display.fillRect((int)((boxX + 3) * UI_SCALE), (int)((boxY + 3) * UI_SCALE), (int)((boxW - 6) * UI_SCALE), (int)((boxH - 6) * UI_SCALE), WHITE);
+
+            String dispSearch = rtlTextMode ? searchQuery + " :Search" : "Search: " + searchQuery;
+            if (cho != -1 || jung != -1) {
+                String composingSearch = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
+                if (rtlTextMode) dispSearch = composingSearch + dispSearch;
+                else dispSearch += composingSearch;
+            }
+            dispSearch += "_";
+            printCleanText(u8g2_for_adafruit_gfx, dispSearch, boxX + 12, boxY + 30, false, boxX + boxW - 12);
+
+        }
+    } 
+    
+    
+    
+    
+    
+    
+    
+    
+
+    
+    if (currentMode == TYPING_MODE || currentMode == SEARCH_MODE) {
+        int hY = 30;
+        
+        display.fillRect(0, 0, display.width(), (int)(40 * UI_SCALE), WHITE);
+        
+        
+        String modeStr = getStatusLanguageLabel();
+
+        
+        String countStr = "";
+        if (countMode == 0) { 
+            charwordcount = sharedCharCount; 
+            countStr = String(charwordcount);
+        } else if (countMode == 1) { 
+            charwordcount = sharedWordCount; 
+            countStr = String(charwordcount);
+        }
+
+        int logicalWidth = (int)(display.width() / UI_SCALE);
+        int countX = 110;
+        int batteryX = logicalWidth - 55;
+        int savedX = batteryX - 78;
+
+        printStatusText(modeStr + "  ", 15, hY);
+
+        if (countMode != 2) {
+            String countLabel = "";
+            if (countMode == 0) countLabel = "Count: ";
+            else countLabel = "Words: ";
+            printStatusText(countLabel + countStr, countX, hY);
+        }
+
+        String titleText = currentFileName;
+        int titleMaxChars = 14;
+        if (titleMaxChars < 4) titleMaxChars = 4;
+        if (titleText.length() > titleMaxChars) titleText = titleText.substring(0, titleMaxChars - 2) + "..";
+        int titleWidth = getTrueLength(titleText) * 8;
+        int titleX = (logicalWidth - titleWidth) / 2;
+        int minTitleX = countX + 95;
+        int maxTitleX = savedX - titleWidth - 8;
+        if (titleX < minTitleX) titleX = minTitleX;
+        if (titleX > maxTitleX) titleX = maxTitleX;
+        printStatusText(titleText, titleX, hY);
+
+        
+        if (savedMessageVisible) {
+            u8g2_for_adafruit_gfx.setForegroundColor(BLACK);
+            printStatusText("[Saved!]", savedX, hY);
+        }
+
+        
+        float batV = display.readBattery();
+        int batPct = constrain((int)((batV - 3.3) / (4.2 - 3.3) * 100), 0, 100);
+        printStatusText(String(batPct) + "%   ", batteryX, hY);
+        
+        display.drawFastHLine(0, (int)(39 * UI_SCALE), display.width(), BLACK);
+    }
+    
+    
+    if (CalcTaskHandle) vTaskSuspend(CalcTaskHandle);
+    if (doFullRefresh) display.display();
+    else display.partialUpdate(false);
+    if (CalcTaskHandle) vTaskResume(CalcTaskHandle);
+    display.resetInternalCounter();
+
+    needUpdate = false;
+    lastMode = currentMode;
+    lastNetSubMode = currentNetSubMode;
+  } 
+  
+  if (currentMode == TYPING_MODE && currentNetSubMode == NET_MAIN && updateState == UPD_NONE && autoSleepIndex != 6) {
+    if (!isUpdating && (millis() - lastKeyPress > sleepIntervals[autoSleepIndex])) {
+        showInitialImage(); 
+        }
+    }
+
+    
+} 
