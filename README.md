@@ -3,6 +3,8 @@
 
 Multilingual writing firmware for the [Zerowriter Ink](https://www.zerowriter.org/) (Inkplate 5 V2). Started as a Korean-input firmware, now supports 92 keyboard layouts across dozens of scripts.
 
+Built from scratch, Ize Compose transforms the Zerowriter Ink keyboard's one-byte serial key events into a Unicode-capable multilingual writing system, with script-specific input handling.
+
 ---
 
 ## Supported Device
@@ -220,12 +222,6 @@ platformio.ini          — PlatformIO build config
 - [Zerowriter Ink](https://www.zerowriter.org/) — original hardware
 
 [![Ize Compose Keyboard Layouts](https://img.youtube.com/vi/NxzNPiyAiqk/maxresdefault.jpg)](https://youtube.com/shorts/gFukSrRGRPw?feature=share)
-
-## Independent Implementation
-
-Ize Compose is an independently developed replacement firmware for Zerowriter Ink. It was written from scratch without using or modifying the original Zerowriter Ink firmware source code.
-
-Compatibility with the hardware keyboard input was established by observing the serial input received by the device and implementing compatible input handling in Ize Compose.
 
 ## License
 
