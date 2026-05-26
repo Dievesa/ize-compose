@@ -3,7 +3,7 @@
 
 Multilingual writing firmware for the [Zerowriter Ink](https://www.zerowriter.org/) (Inkplate 5 V2). Started as a Korean-input firmware, now supports 92 keyboard layouts across dozens of scripts.
 
-Built from scratch, Ize Compose transforms the Zerowriter Ink keyboard's one-byte serial key events into a Unicode-capable multilingual writing system, with script-specific input handling.
+Built from scratch, Ize Compose transforms the Zerowriter Ink keyboard's serial key events into a Unicode-capable multilingual writing system, with script-specific input handling.
 
 ---
 
