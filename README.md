@@ -221,6 +221,12 @@ platformio.ini          — PlatformIO build config
 
 [![Ize Compose Keyboard Layouts](https://img.youtube.com/vi/NxzNPiyAiqk/maxresdefault.jpg)](https://youtube.com/shorts/gFukSrRGRPw?feature=share)
 
+## Independent Implementation
+
+Ize Compose is an independently developed replacement firmware for Zerowriter Ink. It was written from scratch without using or modifying the original Zerowriter Ink firmware source code.
+
+Compatibility with the hardware keyboard input was established by observing the serial input received by the device and implementing compatible input handling in Ize Compose.
+
 ## License
 
 Ize Compose is made publicly available so that people who cannot access affordable writing hardware in their own language can install, use, and improve it for noncommercial purposes.
