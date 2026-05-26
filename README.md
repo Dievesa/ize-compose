@@ -132,6 +132,16 @@ Without these files the device still works, but only Latin text is displayed cor
 - [PlatformIO](https://platformio.org/) (VS Code extension or CLI)
 - Zerowriter Ink (Inkplate 5 V2) with SD card
 
+### Initial build and flash via USB-C
+1. Open the Zerowriter Ink enclosure.
+2. Disconnect the keyboard cable.
+3. Connect the device to your computer using a USB-C cable.
+4. Build and upload the firmware:
+```bash
+git clone https://github.com/Dievesa/ize-compose.git
+cd ize-compose
+pio run --target upload
+
 ### Build and flash
 ```bash
 git clone <this repo>
