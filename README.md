@@ -1,4 +1,9 @@
-### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
+> [!WARNING]
+> **Temporary notice:** The current release is undergoing fixes due to an update issue.  
+> Please do not install or update the firmware until a corrected release is posted.
+>
+>
+> ### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
 # Ize Compose
 
 Multilingual writing firmware for the [Zerowriter Ink](https://www.zerowriter.org/) (Inkplate 5 V2). Started as a Korean-input firmware, now supports 92 keyboard layouts across dozens of scripts.
