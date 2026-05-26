@@ -1,61 +1,212 @@
+### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
 # Ize Compose
 
-### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
-
-**Coming Soon**
+Multilingual writing firmware for the [Zerowriter Ink](https://www.zerowriter.org/) (Inkplate 5 V2). Started as a Korean-input firmware, now supports 92 keyboard layouts across dozens of scripts.
 
 ---
 
-## About
+## Supported Device
 
-**Ize Compose** is a firmware project designed to turn dedicated e-paper writing hardware into a capable multilingual writing tool.
-
-Originally developed to support practical Korean writing on the **Zerowriter Ink**, Ize Compose has expanded into a broader system for focused composition across multiple languages.
-
-It is built for writing directly, quietly, and without unnecessary distractions.
+- **Zerowriter Ink** (Inkplate 5 V2)
+  - ESP32, 800×600 monochrome e-ink display
+  - Requires SD card for non-Latin fonts and document storage
 
 ---
 
 ## Features
 
-Ize Compose is being developed with support for:
+**Writing**
+- Plain-text editing with cursor navigation
+- Phonetic Korean composition (cho/jung/jong jamo assembly)
+- Latin accent cycling (e.g., a → á → â → ã → ...)
+- Right-to-left (RTL) text mode for Arabic-script layouts
+- Text search (Ctrl+F)
+- Copy / paste (Ctrl+C / Ctrl+V)
+- Word and character count (3 display modes)
 
-- Multilingual keyboard layouts
-- Korean text input
-- Optimized font handling for e-paper hardware
-- Focused, distraction-free writing
-- Lightweight firmware operation on dedicated writing devices
+**Keyboard & Language**
+- 92 keyboard layouts selectable from the system menu
+- Two independent layout slots: one for English (QWERTY or Dvorak), one for a second language
+- 12 script composition engines: Korean, Arabic, Indic scripts, Thai, Myanmar, Khmer, Lao, Tibetan, Sinhala, Ethiopic, Japanese, Hebrew
+- RTL layout support: Arabic, Hebrew, Kurdish (Arabic), Pashto, Persian, Urdu
 
-Language support is not an additional feature of Ize Compose. It is one of the foundations of the system.
+**Files**
+- Saves and loads `.txt` files on SD card (`/ize_compose/`)
+- File browser (up to 65 files)
+- WiFi (AP mode) for uploading/downloading text and firmware OTA via browser
+
+**Display**
+- Partial screen update for fast typing feedback
+- Configurable full-refresh threshold
+- Boot/sleep image loaded from `/ize_compose/initial.png` on SD card
+- Sleep mode: Ctrl+L or sleep button; wake with wake button
+
+**Settings (system menu)**
+- Line spacing
+- Typing speed (key repeat delay)
+- Screen refresh limit
+- Keyboard layout selection
+- Font slot
+
+---
+
+## Keyboard Layouts (92)
+
+Dvorak, QWERTY, 한국어, Shqip, العربية, Հայերեն, Deutsch (AT/DE/CH), Azərbaycanca, Беларуская, Nederlands (BE/NL), বাংলা, Bosanski / Босански, Português (BR/PT), Български, Français (CA/FR/CH), Català, Hrvatski, Čeština, Dansk, देवनागरी, Eesti, ኢትዮጵያ, Føroyskt, Suomi, Georgian, Ελληνικά, ગુજરાતી, Hausa, עברית, Magyar, Íslenska, Gaeilge, Italiano, 日本語, ಕನ್ನಡ, Qazaq / Қазақ, ខ្មែរ, Kurdî / کوردی, Кыргызча, ລາວ, Español América, Latviešu, Lietuvių, Lëtzebuergesch, മലയാളം, Malti, Māori, Română (MD) / Молдовеняскэ, Монгол, Crnogorski / Црногорски, မြန်မာ, नेपाली, Македонски, Norsk, پښتو, فارسی, Polski, ਪੰਜਾਬੀ, Română, Русский, Srpski / Српски, සිංහල, Slovenčina, Slovenščina, Español, Kiswahili, Svenska, Тоҷикӣ, தமிழ், తెలుగు, ไทย, བོད་སྐད, Türkçe, Українська, English UK, اردو, Oʻzbek / Ўзбек, Tiếng Việt, Cymraeg
 
 ---
 
-## Hardware
+## Font Files
 
-Ize Compose is currently being developed for the **Zerowriter Ink** platform.
+Latin is embedded in the firmware. All other scripts are loaded from SD card at boot.
 
-Support for additional devices may be explored in the future.
+Place the following files in `/ize_compose/hwalja/` on the SD card:
+
+| File | Scripts covered |
+|---|---|
+| `hwalja_hangul.bin` | Korean (Hangul syllables) |
+| `hwalja_jamo.bin` | Korean (Jamo, composition glyphs) |
+| `hwalja_jp.bin` | Japanese (Hiragana, Katakana) |
+| `hwalja_greek_cyrillic.bin` | Greek, Cyrillic |
+| `hwalja_arabic.bin` | Arabic, Persian, Urdu |
+| `hwalja_indic.bin` | Devanagari, Bengali, Gujarati, Kannada, Malayalam, Punjabi, Tamil, Telugu, Sinhala |
+| `hwalja_sea.bin` | Thai, Khmer, Lao, Myanmar, Tibetan |
+| `hwalja_misc.bin` | Ethiopic, Georgian, Armenian, and others |
+
+Without these files the device still works, but only Latin text is displayed correctly.
+
+---
+
+## Build Environment
+
+### Platform / Board / Framework
+
+| Item | Value |
+|---|---|
+| Platform | `espressif32` |
+| Board | `esp32dev` + Inkplate 5 V2 build flags |
+| Framework | Arduino |
+| CPU clock | 240 MHz |
+| Upload / monitor speed | 921600 baud |
+
+> `board = esp32dev` is used with manual build flags rather than a dedicated Inkplate board definition. This firmware will not work on a generic ESP32 dev board — the flags and PSRAM are specific to the Inkplate 5 V2 hardware.
+
+### Libraries
+
+| Library | Version | Source |
+|---|---|---|
+| InkplateLibrary | 11.0.0 | `lib/` (local, no separate install needed) |
+| SdFat | 2.3.1 | PlatformIO registry |
+| U8g2_for_Adafruit_GFX | 1.8.0 | PlatformIO registry |
+| ESP32 BLE Keyboard | 0.3.2 | PlatformIO registry |
+| Adafruit GFX Library | 1.12.6 | PlatformIO registry |
+| Adafruit BusIO | — | PlatformIO registry |
+
+### Build flags
+
+| Flag | Purpose |
+|---|---|
+| `-DARDUINO_INKPLATE5V2` | Board identification |
+| `-DINKPLATE_5V2` | Enables correct code path inside InkplateLibrary |
+| `-DBOARD_HAS_PSRAM` | Declares PSRAM presence to ESP-IDF |
+| `-mfix-esp32-psram-cache-issue` | Workaround for ESP32 PSRAM cache bug (older silicon) |
+| `-DSCREEN_WIDTH=800` / `-DSCREEN_HEIGHT=600` | Display resolution constants |
+| `-O2` + `build_unflags = -Os` | Speed optimization; overrides PlatformIO's default size optimization |
+| `-D CORE_DEBUG_LEVEL=0` | Suppresses all serial debug output |
+
+### Flash / partition settings
+
+| Item | Value |
+|---|---|
+| Partition table | `huge_app.csv` (maximizes app partition) |
+| Flash speed | 80 MHz |
+| Flash mode | QIO (quad I/O) |
+
+> `huge_app.csv` is a built-in partition table provided by the PlatformIO espressif32 platform. No manual file is needed.
 
 ---
 
-## Status
+## Installation
 
-# Coming Soon
+### Requirements
+- [PlatformIO](https://platformio.org/) (VS Code extension or CLI)
+- Zerowriter Ink (Inkplate 5 V2) with SD card
 
-Ize Compose is currently in final development and refinement.
+### Build and flash
+```bash
+git clone <this repo>
+cd <repo>
+pio run --target upload
+```
 
-Documentation, installation instructions, supported language information, and release files will be published here when the first public version is ready.
+### SD card setup
+1. Format SD card as FAT32.
+2. Create the folder `/ize_compose/hwalja/`.
+3. Copy the `hwalja_*.bin` font files into `/ize_compose/hwalja/`.
+4. (Optional) Place `initial.png` (800×600 PNG) in `/ize_compose/` for the sleep/boot image.
+
+### Firmware OTA update (WiFi)
+1. Open the system menu → Network → WiFi.
+2. Connect to the `IZE_COMPOSE` access point from a PC or phone.
+3. Navigate to `192.168.4.1` in a browser.
+4. Upload a new `.bin` firmware file.
 
 ---
 
-## Project Direction
+## Keyboard Shortcuts
 
-Ize Compose began as a way to make Korean writing genuinely usable on a dedicated e-paper writing device.
-
-It is now growing into a compact multilingual writing system for people who want to write with focus.
+| Shortcut | Action |
+|---|---|
+| Ctrl+Space | Toggle Korean / English mode |
+| Ctrl+L | Sleep (shows boot image) |
+| Ctrl+F | Text search |
+| Ctrl+C | Copy all text to internal clipboard |
+| Ctrl+V | Paste internal clipboard |
+| Space (accent cycling) | Cycle diacritic variants for last character |
 
 ---
-## Keyboard Layouts
-Multilingual keyboard layouts, displayed in their own languages on the device.
+
+## Repository Structure
+
+```
+src/
+  IZEcompose.ino        — main firmware
+  jado.h                — keyboard layout definitions and keymaps (92 layouts)
+  jeong_eum.h           — Korean composition engine and script engine types
+  insoe.h               — text rendering, font selection
+  EmbeddedLatinFont.h   — Latin font baked into firmware
+  PsramAssets.h         — PSRAM asset loading helpers
+  hwalja_*.bin          — font binary files (copy to SD card, not compiled in)
+
+lib/
+  InkplateLibrary/      — Inkplate driver (local copy)
+
+build/
+  noto_fonts/           — source Noto font TTFs used for font building
+
+platformio.ini          — PlatformIO build config
+```
+
+---
+
+## Current Limitations
+
+- Supports only Inkplate 5 V2 (800×600). Other Inkplate boards are not tested.
+- Korean cursor movement during mid-syllable composition is not supported.
+- Only `.txt` files; no formatting.
+- Single document open at a time.
+- Writing mode is unavailable while WiFi or BLE transfer mode is active.
+- The sleep image must be exactly 800×600 pixels; other sizes are not handled.
+
+---
+
+## Credits
+
+- [Inkplate Arduino Library](https://github.com/SolderedElectronics/Inkplate-Arduino-library) — Soldered Electronics
+- [U8g2_for_Adafruit_GFX](https://github.com/olikraus/U8g2_for_Adafruit_GFX) — Oliver Kraus
+- [ESP32 BLE Keyboard](https://github.com/T-vK/ESP32-BLE-Keyboard) — T-vK
+- [SdFat](https://github.com/greiman/SdFat) — Bill Greiman
+- [Noto Fonts](https://fonts.google.com/noto) — Google (used for font building; license: SIL OFL 1.1)
+- [Zerowriter Ink](https://www.zerowriter.org/) — original hardware
 
 [![Ize Compose Keyboard Layouts](https://img.youtube.com/vi/NxzNPiyAiqk/maxresdefault.jpg)](https://youtube.com/shorts/gFukSrRGRPw?feature=share)
