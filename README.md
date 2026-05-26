@@ -223,6 +223,6 @@ platformio.ini          — PlatformIO build config
 
 ## License
 
-Copyright © 2026 Dievesa. All rights reserved.
+Ize Compose is made publicly available so that people who cannot access affordable writing hardware in their own language can install, use, and improve it for noncommercial purposes.
 
-The source code is publicly available for viewing. No license for redistribution, modification, or commercial use is granted at this time.
+Commercial use, including selling firmware, installation services, modified versions, or hardware products incorporating Ize Compose, requires separate permission from Dievesa.
