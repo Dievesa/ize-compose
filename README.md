@@ -220,3 +220,9 @@ platformio.ini          — PlatformIO build config
 - [Zerowriter Ink](https://www.zerowriter.org/) — original hardware
 
 [![Ize Compose Keyboard Layouts](https://img.youtube.com/vi/NxzNPiyAiqk/maxresdefault.jpg)](https://youtube.com/shorts/gFukSrRGRPw?feature=share)
+
+## License
+
+Copyright © 2026 Dievesa. All rights reserved.
+
+The source code is publicly available for viewing. No license for redistribution, modification, or commercial use is granted at this time.
