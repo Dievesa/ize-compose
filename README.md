@@ -1,5 +1,5 @@
 > [!WARNING]
-> **Temporary notice:** The current release is undergoing fixes due to an update issue.  
+> **Temporary notice:** The current release is undergoing fixes due to an update and several early catched issue.  
 > Please do not install or update the firmware until a corrected release is posted.
 
 
