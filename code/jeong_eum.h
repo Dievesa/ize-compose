@@ -817,7 +817,9 @@ inline bool keyEngineApplyEthiopicVowel(char c) {
 
 inline void keyEngineAfterEdit(KeyEngineScript engine) {
     keyEngineClampCursorToUtf8Boundary();
-    if (engine == KEY_ENGINE_ARABIC) keyEngineReshapeArabicAroundCursor();
+    // Arabic-script text stays in logical/base Unicode order in fullText.
+    // Contextual glyph shaping is applied only when an RTL line is drawn.
+    if (engine == KEY_ENGINE_ARABIC) { }
     else if (engine == KEY_ENGINE_INDIC) keyEngineStabilizeIndicAroundCursor();
     else if (engine == KEY_ENGINE_JAPANESE) keyEngineNormalizeJapaneseAroundCursor();
     else if (engine == KEY_ENGINE_THAI || engine == KEY_ENGINE_MYANMAR || engine == KEY_ENGINE_KHMER || engine == KEY_ENGINE_LAO || engine == KEY_ENGINE_TIBETAN || engine == KEY_ENGINE_SINHALA) keyEngineStabilizeComplexAroundCursor();
