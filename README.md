@@ -1,6 +1,7 @@
 # Ize Compose
+Ize comes from the Korean word ije (이제): now, from this moment on, and the near future ahead.
 
-### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
+### Ize Compose — Multilingual firmware for focused writing on e-paper hardware.
 
 > [!NOTE]
 > **v1.1.0 is available.** This release enables web-based firmware updates (OTA) on Zerowriter Ink.  
