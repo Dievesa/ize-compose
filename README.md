@@ -37,6 +37,7 @@ Built from scratch, Ize Compose transforms the Zerowriter Ink keyboard's serial 
 - Two independent layout slots: an English slot (QWERTY or Dvorak) and a selected-language slot
 - Switch between the English slot and the selected-language slot with `Ctrl+Space`
 - `Alt` provides dead-key / character-conversion input for supported layouts
+* The English slot supports `Alt`-key character conversion regardless of the selected layout, including variants for keys such as `s`, `i`, and `o`.
 - 12 script composition engines: Korean, Arabic, Indic scripts, Thai, Myanmar, Khmer, Lao, Tibetan, Sinhala, Ethiopic, Japanese, Hebrew
 - RTL layout support: Arabic, Hebrew, Kurdish (Arabic), Pashto, Persian, Urdu
 - Arabic-script text is saved as logical Unicode text for compatibility on other devices
