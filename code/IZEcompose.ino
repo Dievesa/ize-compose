@@ -8,20 +8,21 @@
 #include <driver/uart.h>
 #include <Update.h> 
 #include "jado.h"
-#include "EmbeddedLatinFont.h"
+// Writing fonts are loaded from SD into PSRAM. A small built-in font remains only as fallback.
 #include "soc/rtc_cntl_reg.h" 
 #include "soc/timer_group_reg.h"
 #include <SdFat.h>
 
 
-SdFat SD;
 const char* APP_ROOT_DIR = "/ize_compose";
 const char* FONT_DIR = "/ize_compose/hwalja";
 const char* FIRMWARE_DIR = "/ize_compose/upload";
 const char* INITIAL_IMAGE_PATH = "/ize_compose/initial.png";
-const char* FIRMWARE_UPDATE_PATH = "/ize_compose/upload/rupertwriter.bin";
-const uint8_t* font_ptr = EMBEDDED_FONT_LATIN;
-const uint8_t* font_latin_ptr = EMBEDDED_FONT_LATIN;
+const char* FIRMWARE_UPDATE_PATH = "/ize_compose/upload/izefirmware.bin";
+const char* LATIN_FONT_PATH = "/ize_compose/hwalja/hwalja_latin.bin";
+// Minimal English fallback used only before SD fonts load or when an asset is missing.
+const uint8_t* font_ptr = u8g2_font_5x7_tf;
+const uint8_t* font_latin_ptr = u8g2_font_5x7_tf;
 const uint8_t* font_hangul_ptr = nullptr;
 const uint8_t* font_jamo_ptr = nullptr;
 const uint8_t* font_jp_ptr = nullptr;
@@ -33,7 +34,7 @@ const uint8_t* font_misc_ptr = nullptr;
 int currentFontSlot = 1;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 bool isFirmwareUpdateMode = false;
-#define FIRMWARE_VERSION "v2.0.0" 
+#define FIRMWARE_VERSION "v1.1.0" // USB bootstrap build: fixes the web updater before OTA testing 
 const char* FIRMWARE_SIGNATURE = "RUPERT_OFFICIAL_KOR";
 const gpio_num_t WAKE_BUTTON_PIN = GPIO_NUM_36;
 enum AppMode { TYPING_MODE, FILE_MENU_MODE, INITIAL_MODE, SEARCH_MODE, WIFI_SCAN_MODE, WIFI_PASSWORD_MODE };
@@ -119,6 +120,7 @@ void refreshFileList();
 void loadFile();
 const uint8_t* loadFontToPSRAM(int slot); 
 String searchQuery = ""; 
+int searchMatchEnd = -1;  // confirmed match end position; -1 while query is only being edited
 #include <Preferences.h> 
 Preferences prefs;
 String fullText = ""; 
@@ -231,6 +233,7 @@ void doBackspace() {
             int p = searchQuery.length() - 1;
             while (p > 0 && (searchQuery[p] & 0xC0) == 0x80) p--;
             searchQuery = searchQuery.substring(0, p);
+            searchMatchEnd = -1;
         } else {
             keyEngineReset(activeEngine);
             currentMode = TYPING_MODE;
@@ -340,6 +343,7 @@ void sendBleInput(byte k, char real) {
 void insertText(String str) { 
     if (currentMode == SEARCH_MODE) {
         searchQuery += str; 
+        searchMatchEnd = -1;
     } else {
         keyEngineClampCursorToUtf8Boundary();
         fullText = fullText.substring(0, cursorPos) + str + fullText.substring(cursorPos); 
@@ -382,6 +386,33 @@ void hardRefresh() {
 }
 
 int viewBottomIdx = 0; 
+
+// Fast path only for ordinary typing at the document end with no line reflow.
+int lastRenderedTextLen = -1;
+int lastRenderedCursorPos = -1;
+int lastRenderedTailStart = -1;
+int lastRenderedTailLineCount = -1;
+bool lastRenderedTailRtl = false;
+
+int countWrappedLinesInRange(const String& text, int start, int end, int maxWidth) {
+    if (start >= end) return 1;
+    int count = 1;
+    int width = 0;
+    for (int k = start; k < end; ) {
+        int l = zwUtf8CharLen(text, k);
+        if (l <= 0) l = 1;
+        uint32_t cp = zwUtf8Codepoint(text.c_str() + k, l);
+        int charWidth = zwGlyphAdvance(cp, l, false);
+        if (width + charWidth > maxWidth && width > 0) {
+            count++;
+            width = charWidth;
+        } else {
+            width += charWidth;
+        }
+        k += l;
+    }
+    return count;
+}
 
 void adjustViewBottom() {
     
@@ -460,6 +491,55 @@ void printDualFont(String text, int x, int y, bool isMenu = false, int maxWidth 
     }
 }
 
+static inline bool rtlDigitCodepoint(uint32_t cp) {
+    return (cp >= '0' && cp <= '9') ||
+           (cp >= 0x0660 && cp <= 0x0669) ||
+           (cp >= 0x06F0 && cp <= 0x06F9);
+}
+
+String makeRtlVisualText(const String& logicalText) {
+    String shaped = (getSelectedKeyEngine() == KEY_ENGINE_ARABIC)
+        ? keyEngineShapeArabicRun(logicalText)
+        : logicalText;
+
+    String visual = "";
+    String cluster = "";
+    String digitRun = "";
+
+    auto prependCluster = [&](const String& item) {
+        if (item.length() == 0) return;
+        int l = zwUtf8CharLen(item, 0);
+        uint32_t cp = (l > 0) ? zwUtf8Codepoint(item.c_str(), l) : 0;
+        if (rtlDigitCodepoint(cp)) {
+            digitRun += item;
+        } else {
+            if (digitRun.length() > 0) {
+                visual = digitRun + visual;
+                digitRun = "";
+            }
+            visual = item + visual;
+        }
+    };
+
+    for (int i = 0; i < shaped.length(); ) {
+        int l = zwUtf8CharLen(shaped, i);
+        if (l <= 0) l = 1;
+        uint32_t cp = zwUtf8Codepoint(shaped.c_str() + i, l);
+        String ch = shaped.substring(i, i + l);
+
+        if (zwGlyphAdvance(cp, l, false) == 0 && cluster.length() > 0) {
+            cluster += ch;
+        } else {
+            prependCluster(cluster);
+            cluster = ch;
+        }
+        i += l;
+    }
+    prependCluster(cluster);
+    if (digitRun.length() > 0) visual = digitRun + visual;
+    return visual;
+}
+
 void printStatusText(String text, int x, int y) {
     float prevScale = displayScale;
     displayScale = 2.0f;
@@ -521,23 +601,24 @@ String getAutoSleepDisplayLabel() {
 }
 
 void printMenuEntry(String text, int x, int y, bool isSelected, bool isRightSide) {
+    String displayText = (rtlTextMode && isRightSide) ? makeRtlVisualText(text) : text;
     int drawX = (int)(x * displayScale);
     int drawY = (int)(y * displayScale);
     int boxW = isRightSide ? (int)(540 * displayScale) : (int)(190 * displayScale);
     int boxH = (int)((baseFontSize + lineSpacing + 8) * displayScale);
-    int textX = (rtlTextMode && isRightSide) ? (x + 520 - zwMeasureTextWidth(text, true)) : x;
+    int textX = (rtlTextMode && isRightSide) ? (x + 520 - zwMeasureTextWidth(displayText, true)) : x;
     if (isSelected) {
         
         display.fillRect(drawX - (int)(4 * displayScale), drawY - (int)((baseFontSize + 2) * displayScale), boxW, boxH, BLACK);
         u8g2_for_adafruit_gfx.setForegroundColor(WHITE); 
         u8g2_for_adafruit_gfx.setBackgroundColor(BLACK);
-        printDualFont(text, textX, y, true, x + (isRightSide ? 520 : 185));
+        printDualFont(displayText, textX, y, true, x + (isRightSide ? 520 : 185));
         u8g2_for_adafruit_gfx.setForegroundColor(BLACK); 
         u8g2_for_adafruit_gfx.setBackgroundColor(WHITE);
     } else {
         u8g2_for_adafruit_gfx.setForegroundColor(BLACK); 
         u8g2_for_adafruit_gfx.setBackgroundColor(WHITE);
-        printDualFont(text, textX, y, true, x + (isRightSide ? 520 : 185));
+        printDualFont(displayText, textX, y, true, x + (isRightSide ? 520 : 185));
     }
 }
 
@@ -874,6 +955,8 @@ void CalculationTask(void * pvParameters) {
                 byte k = Serial.peek(); 
                 if (k == 243) { 
                     Serial.read(); 
+                    isCtrlPressed = false;  // release event is consumed here
+                     
                     
                     unsigned long t = millis();
                     while (millis() - t < 100) { 
@@ -974,6 +1057,7 @@ static void replaceFontPtr(const uint8_t*& target, const uint8_t* next) {
 
 const uint8_t* loadFontToPSRAM(int slot) {
     (void)slot;
+    const uint8_t* nextLatin = loadFontFileToPSRAM(LATIN_FONT_PATH);
     const uint8_t* nextHangul = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_hangul.bin");
     const uint8_t* nextJamo = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_jamo.bin");
     const uint8_t* nextJp = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_jp.bin");
@@ -983,7 +1067,8 @@ const uint8_t* loadFontToPSRAM(int slot) {
     const uint8_t* nextSea     = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_sea.bin");
     const uint8_t* nextMisc    = loadFontFileToPSRAM("/ize_compose/hwalja/hwalja_misc.bin");
 
-    font_latin_ptr = EMBEDDED_FONT_LATIN;
+    font_latin_ptr = u8g2_font_5x7_tf;
+    if (nextLatin) replaceFontPtr(font_latin_ptr, nextLatin);
     font_ptr = font_latin_ptr;
     if (nextHangul) replaceFontPtr(font_hangul_ptr, nextHangul); else font_hangul_ptr = font_latin_ptr;
     if (nextJamo) replaceFontPtr(font_jamo_ptr, nextJamo); else font_jamo_ptr = font_latin_ptr;
@@ -1000,6 +1085,7 @@ void setup() {
     
     setCpuFrequencyMhz(240);
     Serial.begin(921600); 
+
 
     
     psramInit();
@@ -1106,9 +1192,39 @@ String uploadHttpMessage = "OK";
 uint8_t uploadHeader[8];
 int uploadHeaderLen = 0;
 
+bool sdPathExists(const char* path) {
+    SdFile f;
+    if (!f.open(path, O_RDONLY)) return false;
+    f.close();
+    return true;
+}
+
+bool removeSdFile(const char* path) {
+    SdFile f;
+    if (!f.open(path, O_RDONLY)) return true;
+    bool ok = f.remove();
+    if (f.isOpen()) f.close();
+    return ok;
+}
+
 bool ensureDirExists(const char* path) {
-    if (SD.exists(path)) return true;
-    return SD.mkdir(path);
+    SdFile existing;
+    if (existing.open(path, O_RDONLY)) {
+        bool ok = existing.isDir();
+        existing.close();
+        return ok;
+    }
+
+    SdFile root;
+    SdFile created;
+    if (!root.open("/", O_RDONLY) || !root.isDir()) {
+        if (root.isOpen()) root.close();
+        return false;
+    }
+    bool ok = created.mkdir(&root, path, true);
+    if (created.isOpen()) created.close();
+    root.close();
+    return ok;
 }
 
 bool ensureIzeComposeDirs() {
@@ -1119,7 +1235,7 @@ bool ensureIzeComposeDirs() {
 }
 
 bool copySdFileIfMissing(const char* fromPath, const char* toPath) {
-    if (SD.exists(toPath) || !SD.exists(fromPath)) return true;
+    if (sdPathExists(toPath) || !sdPathExists(fromPath)) return true;
     SdFile src;
     SdFile dst;
     if (!src.open(fromPath, O_RDONLY)) return false;
@@ -1139,12 +1255,14 @@ bool copySdFileIfMissing(const char* fromPath, const char* toPath) {
     }
     src.close();
     dst.close();
-    if (!ok) SD.remove(toPath);
+    if (!ok) removeSdFile(toPath);
     return ok;
 }
 
 void migrateLegacyIzeComposeFiles() {
     copySdFileIfMissing("/backup/initial.png", INITIAL_IMAGE_PATH);
+    copySdFileIfMissing("/backup/font_latin.bin", LATIN_FONT_PATH);
+    copySdFileIfMissing("/backup/hwalja_latin.bin", LATIN_FONT_PATH);
     copySdFileIfMissing("/backup/font_hangul.bin", "/ize_compose/hwalja/hwalja_hangul.bin");
     copySdFileIfMissing("/backup/font_jamo.bin", "/ize_compose/hwalja/hwalja_jamo.bin");
     copySdFileIfMissing("/backup/font_jp.bin", "/ize_compose/hwalja/hwalja_jp.bin");
@@ -1177,7 +1295,8 @@ void handleWebServerUpdate() {
 }
 
 bool isAllowedFontBinName(const String& filename) {
-    return filename == "hwalja_hangul.bin" ||
+    return filename == "hwalja_latin.bin" ||
+           filename == "hwalja_hangul.bin" ||
            filename == "hwalja_jamo.bin" ||
            filename == "hwalja_jp.bin" ||
            filename == "hwalja_greek_cyrillic.bin" ||
@@ -1209,7 +1328,9 @@ void handleWebServerUpload() {
 
         String clientPin = server.header("X-OTA-PIN");
         if (otaPinCode != "" && clientPin != otaPinCode) {
-            server.send(403, "text/plain", "Invalid PIN");
+            uploadAccepted = false;
+            uploadHttpStatus = 403;
+            uploadHttpMessage = "Invalid PIN";
             return;
         }
 
@@ -1225,7 +1346,7 @@ void handleWebServerUpload() {
         isUpdating = true;
         if (CalcTaskHandle != NULL) vTaskSuspend(CalcTaskHandle);
 
-        if (filename == "rupertwriter.bin") {
+        if (filename == "izefirmware.bin") {
             if (!ensureIzeComposeDirs()) {
                 uploadHttpStatus = 500;
                 uploadHttpMessage = "Could not create ize_compose folders";
@@ -1281,7 +1402,7 @@ void handleWebServerUpload() {
         if (sdBackupFile.isOpen()) sdBackupFile.close();
 
         if (uploadIsInitialImage && !isUploadedPng()) {
-            SD.remove(uploadTargetPath.c_str());
+            removeSdFile(uploadTargetPath.c_str());
             isUpdating = false;
             updateScreenDrawn = false;
             uploadHttpStatus = 400;
@@ -1326,6 +1447,9 @@ void setupWiFi() {
     WiFi.setTxPower(WIFI_POWER_15dBm);
     webServerUpdateOnly = (updateState == UPD_WIFI_WAITING);
 
+    const char* otaHeaderKeys[] = {"X-OTA-PIN"};
+    server.collectHeaders(otaHeaderKeys, 1);
+
     server.on("/", handleRoot);
     server.on("/read", handleRead);
     server.on("/download", handleDownload);
@@ -1368,58 +1492,71 @@ String getAccentChar(char base, int mode, int cycle) {
 }
 
 String getSdFirmwarePath() {
-    if (SD.exists(FIRMWARE_UPDATE_PATH)) return FIRMWARE_UPDATE_PATH;
+    if (sdPathExists(FIRMWARE_UPDATE_PATH)) return FIRMWARE_UPDATE_PATH;
     return "";
+}
+
+void failSdOta(const char* reason) {
+    removeSdFile(FIRMWARE_UPDATE_PATH);   // Prevent endless retry of a failed staged firmware.
+    isUpdating = false;
+    updateScreenDrawn = false;
+    updateState = UPD_NONE;
+    webServerUpdateOnly = false;
+    isFirmwareUpdateMode = false;
+    currentNetSubMode = NET_MAIN;
+    needUpdate = true;
+
+    display.fillRect(0, 0, display.width(), display.height(), WHITE);
+    int updateCenterY = (int)((display.height() / displayScale) / 2);
+    printCleanText(u8g2_for_adafruit_gfx, "Update failed.", MARGIN_X, updateCenterY - 20);
+    printCleanText(u8g2_for_adafruit_gfx, reason, MARGIN_X, updateCenterY + 10);
+    printCleanText(u8g2_for_adafruit_gfx, "Return to writing mode.", MARGIN_X, updateCenterY + 40);
+    display.display();
+    delay(2500);
 }
 
 void performSdOta() {
     String path = getSdFirmwarePath();
     if (path == "") {
+        failSdOta("Firmware file is missing.");
         return;
     }
     SdFile f;
-    
-    
     if (!f.open(path.c_str(), O_RDONLY)) {
+        failSdOta("Cannot open firmware file.");
         return;
     }
-    
-    
-    size_t fSize = f.fileSize(); 
+
+    size_t fSize = f.fileSize();
     isUpdating = true;
     needUpdate = true;
-    
+
     if (!Update.begin(fSize)) {
         Update.printError(Serial);
         f.close();
-        isUpdating = false;
-        updateScreenDrawn = false;
+        failSdOta("Firmware does not fit OTA slot.");
         return;
     }
-    
+
     uint8_t buf[512];
     int n;
-    
-    
     while ((n = f.read(buf, sizeof(buf))) > 0) {
         if (Update.write(buf, n) != n) {
             Update.printError(Serial);
             f.close();
-            isUpdating = false;
-            updateScreenDrawn = false;
+            failSdOta("Writing firmware failed.");
             return;
         }
         yield();
     }
     f.close();
     if (Update.end(true)) {
-        SD.remove(path);               
+        removeSdFile(path.c_str());
         delay(500);
         ESP.restart();
     } else {
         Update.printError(Serial);
-        isUpdating = false;
-        updateScreenDrawn = false;
+        failSdOta("Finalizing firmware failed.");
     }
 }
 
@@ -1502,6 +1639,9 @@ void showInitialImage() {
     display.clearDisplay(); 
     display.fillRect(0, 0, display.width(), display.height(), WHITE); 
     while (Serial.available() > 0) Serial.read(); 
+    isCtrlPressed = false;
+    isShiftPressed = false;
+    isAltPressed = false;
     currentMode = TYPING_MODE; 
     needUpdate = true; 
     statusBarNeedsUpdate = true; 
@@ -1526,10 +1666,15 @@ if (currentNetSubMode == NET_WIFI || updateState == UPD_WIFI_WAITING) {
             if (k == 246) { 
                 WiFi.softAPdisconnect(true);
                 WiFi.mode(WIFI_OFF);
-        updateState = UPD_NONE;
-        webServerUpdateOnly = false;
-        pinInputBuffer = "";
+                updateState = UPD_NONE;
+                webServerUpdateOnly = false;
+                currentNetSubMode = NET_MAIN;
+                isFirmwareUpdateMode = false;
+                pinInputBuffer = "";
                 otaPinCode = "";
+                isCtrlPressed = false;
+                isShiftPressed = false;
+                isAltPressed = false;
                 needUpdate = true;
                 break;
             }
@@ -1546,6 +1691,9 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
         isFirmwareUpdateMode = false;
         updateState = UPD_NONE;
         webServerUpdateOnly = false;
+        isCtrlPressed = false;
+        isShiftPressed = false;
+        isAltPressed = false;
         needUpdate = true;
         statusBarNeedsUpdate = true;
     }
@@ -1555,7 +1703,8 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
     
         if (!updateScreenDrawn) {
             display.fillRect(0, 0, display.width(), display.height(), WHITE);
-            printCleanText(u8g2_for_adafruit_gfx, "Updating... Rebooting when done.", MARGIN_X, display.height() / 2);
+            int updateCenterY = (int)((display.height() / displayScale) / 2);
+            printCleanText(u8g2_for_adafruit_gfx, "Updating... Rebooting when done.", MARGIN_X, updateCenterY);
             display.display();
             updateScreenDrawn = true;
         }
@@ -1568,7 +1717,8 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
 
             
             display.fillRect(0, 0, display.width(), display.height(), WHITE);
-            printCleanText(u8g2_for_adafruit_gfx, "Updating... Rebooting when done.", MARGIN_X, display.height() / 2);
+            int updateCenterY = (int)((display.height() / displayScale) / 2);
+            printCleanText(u8g2_for_adafruit_gfx, "Updating... Rebooting when done.", MARGIN_X, updateCenterY);
             display.display();
             performSdOta();
             return;
@@ -1579,11 +1729,14 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
         
         if (needUpdate) {
             display.fillRect(0, 0, display.width(), display.height(), WHITE);
+            int updateCenterY = (int)((display.height() / displayScale) / 2);
             String msg1 = "Enter 4-digit PIN for web update:";
-            String msg2 = "";
-            for (int i = 0; i < 4; i++) msg2 += (i < pinInputBuffer.length() ? "*" : "_");
-            printCleanText(u8g2_for_adafruit_gfx, msg1, MARGIN_X, display.height()/2 - 20);
-            printCleanText(u8g2_for_adafruit_gfx, msg2, MARGIN_X, display.height()/2 + 10);
+            String msg2 = pinInputBuffer;
+            for (int i = pinInputBuffer.length(); i < 4; i++) msg2 += "_";
+            String msg3 = (pinInputBuffer.length() == 4) ? "Press Enter to confirm." : "";
+            printCleanText(u8g2_for_adafruit_gfx, msg1, MARGIN_X, updateCenterY - 35);
+            printCleanText(u8g2_for_adafruit_gfx, msg2, MARGIN_X, updateCenterY);
+            if (msg3 != "") printCleanText(u8g2_for_adafruit_gfx, msg3, MARGIN_X, updateCenterY + 35);
             display.partialUpdate();
             needUpdate = false;
         }
@@ -1601,11 +1754,22 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
                 pinInputBuffer.remove(pinInputBuffer.length() - 1);
                 needUpdate = true;
             }
-            if (pinInputBuffer.length() == 4) {
+            if (k == 40 && pinInputBuffer.length() == 4) {
                 otaPinCode = pinInputBuffer;
                 updateState = UPD_WIFI_WAITING;
+                currentNetSubMode = NET_WIFI;
+                isFirmwareUpdateMode = true;
                 setupWiFi();
-                needUpdate = true;
+
+                display.fillRect(0, 0, display.width(), display.height(), WHITE);
+                int updateCenterY = (int)((display.height() / displayScale) / 2);
+                printCleanText(u8g2_for_adafruit_gfx, "Web Server Opened for Update", MARGIN_X, updateCenterY - 70);
+                printCleanText(u8g2_for_adafruit_gfx, "Wi-Fi: IZEcompose_FileServer", MARGIN_X, updateCenterY - 35);
+                printCleanText(u8g2_for_adafruit_gfx, "Password: 00009888", MARGIN_X, updateCenterY);
+                printCleanText(u8g2_for_adafruit_gfx, "Open: 192.168.4.1/", MARGIN_X, updateCenterY + 35);
+                printCleanText(u8g2_for_adafruit_gfx, "Upload PIN: " + otaPinCode, MARGIN_X, updateCenterY + 70);
+                display.display();
+                needUpdate = false;
                 break;
             }
             if (k == 246) {
@@ -1700,8 +1864,8 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
       if (real == 'r' || real == 'R') { flushKorean(); hardRefresh(); continue; }
       if (real == 'f' || real == 'F') { 
           flushKorean(); 
-          if (currentMode == SEARCH_MODE) currentMode = TYPING_MODE;
-          else { currentMode = SEARCH_MODE; searchQuery = ""; }
+          if (currentMode == SEARCH_MODE) { currentMode = TYPING_MODE; searchMatchEnd = -1; }
+          else { currentMode = SEARCH_MODE; searchQuery = ""; searchMatchEnd = -1; }
           needUpdate = true; continue; 
       }
       if (k == 57) { moveCursorToLineStart(); continue; } 
@@ -1908,8 +2072,16 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
                     isEditingValue = false;
                 } 
                 else if (leftMenuIndex >= 1 && leftMenuIndex <= 8) {
-                    if (isEditingValue) {
-                        
+                    // Update is an action, not an editable setting: enter it immediately.
+                    if (leftMenuIndex == 8) {
+                        pinInputBuffer = "";
+                        otaPinCode = "";
+                        isEditingValue = false;
+                        updateState = UPD_PIN_INPUT;
+                        currentMode = TYPING_MODE;
+                        needUpdate = true;
+                        return;  // Preserve needUpdate for the PIN screen on the next loop.
+                    } else if (isEditingValue) {
                         if (leftMenuIndex == 6 || leftMenuIndex == 7) {
                             if (leftMenuIndex == 6) englishLayoutIndex = previewEnglishLayoutIndex <= 0 ? 0 : 1;
                             if (leftMenuIndex == 7) keyboardLayoutIndex = previewKeyboardLayoutIndex;
@@ -1917,25 +2089,14 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
                             saveSystemSettings();
                             needUpdate = true;
                             isCapsLockOn = false;
-                        } else if (leftMenuIndex == 8) {
-                            if (getSdFirmwarePath() != "") {
-                                currentMode = TYPING_MODE;
-                                updateState = UPD_SD_RUNNING;
-                                needUpdate = true;
-                            } else {
-                                pinInputBuffer = "";
-                                updateState = UPD_PIN_INPUT;
-                                currentMode = TYPING_MODE;
-                                needUpdate = true;
-                            }
                         } else {
-                            isEditingValue = false;    
+                            isEditingValue = false;
                         }
                     } else {
                         if (leftMenuIndex == 6) previewEnglishLayoutIndex = englishLayoutIndex;
                         if (leftMenuIndex == 7) previewKeyboardLayoutIndex = keyboardLayoutIndex;
-                        isEditingValue = true;         
-                    }                
+                        isEditingValue = true;
+                    }
                 }
                 
             }
@@ -1982,7 +2143,7 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
       if (k == 57 || k == 58 || k == 59 || k == 60) {
           flushKorean();
       }
-      if (k == 58) { int ls = fullText.lastIndexOf('\n', cursorPos - 1); if (ls != -1) { int lineStart = fullText.lastIndexOf('\n', ls - 1) + 1; int col = utf8ColumnBetween(fullText, ls + 1, cursorPos); cursorPos = utf8OffsetForColumn(fullText, lineStart, ls, col); } continue; } 
+      if (k == 58) { int ls = fullText.lastIndexOf('\n', cursorPos - 1); if (ls != -1) { int lineStart = fullText.lastIndexOf('\n', ls - 1) + 1; int col = utf8ColumnBetween(fullText, ls + 1, cursorPos); cursorPos = utf8OffsetForColumn(fullText, lineStart, ls, col); needUpdate = true; } continue; } 
       if (k == 59) { 
         int ns = fullText.indexOf('\n', cursorPos); 
         if (ns != -1) { 
@@ -2000,8 +2161,18 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
           needUpdate = true;
           continue; 
           }
-      if (k == 57) { if (cursorPos > 0) cursorPos = utf8PrevStart(fullText, cursorPos); continue; }
-      if (k == 60) { if (cursorPos < fullText.length()) cursorPos = utf8NextStart(fullText, cursorPos); continue; }
+      if (k == 57) {
+        if (rtlTextMode) {
+          if (cursorPos < fullText.length()) { cursorPos = utf8NextStart(fullText, cursorPos); needUpdate = true; }
+        } else if (cursorPos > 0) { cursorPos = utf8PrevStart(fullText, cursorPos); needUpdate = true; }
+        continue;
+      }
+      if (k == 60) {
+        if (rtlTextMode) {
+          if (cursorPos > 0) { cursorPos = utf8PrevStart(fullText, cursorPos); needUpdate = true; }
+        } else if (cursorPos < fullText.length()) { cursorPos = utf8NextStart(fullText, cursorPos); needUpdate = true; }
+        continue;
+      }
       if (real == '\b') doBackspace();
       else if (real != 0 || k == 56) { 
         String insertedForAccent = "";
@@ -2022,9 +2193,14 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
                     continue; 
                 }
                 if (real == '\n') { 
-                    int found = fullText.indexOf(searchQuery, cursorPos);
-                    if (found == -1) found = fullText.indexOf(searchQuery, 0); 
-                    if (found != -1) cursorPos = found + searchQuery.length();
+                    int found = (searchQuery.length() > 0) ? fullText.indexOf(searchQuery, cursorPos) : -1;
+                    if (found == -1 && searchQuery.length() > 0) found = fullText.indexOf(searchQuery, 0); 
+                    if (found != -1) {
+                        cursorPos = found + searchQuery.length();
+                        searchMatchEnd = cursorPos;
+                    } else {
+                        searchMatchEnd = -1;
+                    }
                     needUpdate = true; 
                     continue;
                 }
@@ -2101,7 +2277,7 @@ if (__atomic_load_n(&networkExitRequested, __ATOMIC_SEQ_CST)) {
             printCleanText(u8g2_for_adafruit_gfx, bleKeyboard.isConnected() ? "Connected: Type to computer" : "Pair IZE Compose on your computer", MARGIN_X, infoY + 25);
             printCleanText(u8g2_for_adafruit_gfx, "EXIT: Ctrl + Menu", MARGIN_X, infoY + 50);
         } else if (isFirmwareUpdateMode) {
-            printCleanText(u8g2_for_adafruit_gfx, "Update Mode (192.168.4.1/update)", MARGIN_X, infoY);
+            printCleanText(u8g2_for_adafruit_gfx, "Update Mode (192.168.4.1/)", MARGIN_X, infoY);
             printCleanText(u8g2_for_adafruit_gfx, "EXIT: Ctrl + Menu", MARGIN_X, infoY + 25);
         } else {
             printCleanText(u8g2_for_adafruit_gfx, "Network Mode", MARGIN_X, infoY);
@@ -2242,29 +2418,67 @@ for(int i = leftMenuOffset; i < menuCount; i++) {    if (i >= leftMenuOffset + m
         int contentRight = (int)((display.width() / displayScale) - RIGHT_EDGE_MARGIN);
         int maxWidth = contentRight - MARGIN_X;
 
-        // 커서가 속한 단락의 시작 바이트 위치
-        int cursorParaStart = 0;
-        for (int ci = cursorPos; ci > 0; ci--) {
-            if (d[ci-1] == '\n') { cursorParaStart = ci; break; }
+        // Preserve the remainder of a visual line when the viewport boundary
+        // lands in the middle of it during cursor navigation.
+        if (renderEnd < d.length() && d[renderEnd] != '\n') {
+            int paraStart = renderEnd;
+            while (paraStart > 0 && d[paraStart - 1] != '\n') paraStart--;
+
+            int lineStart = paraStart;
+            int lineWidth = 0;
+            for (int k = paraStart; k < d.length() && d[k] != '\n'; ) {
+                int l = zwUtf8CharLen(d, k);
+                if (l <= 0) l = 1;
+                uint32_t cp = zwUtf8Codepoint(d.c_str() + k, l);
+                int charWidth = zwGlyphAdvance(cp, l, false);
+
+                if (lineWidth + charWidth > maxWidth && k > lineStart) {
+                    if (renderEnd < k) {
+                        renderEnd = k;
+                        break;
+                    }
+                    lineStart = k;
+                    lineWidth = 0;
+                }
+                lineWidth += charWidth;
+                k += l;
+                if (k >= d.length() || d[k] == '\n') {
+                    renderEnd = k;
+                    break;
+                }
+            }
         }
-        // 이전 프레임에 커서 Y가 있으면 해당 영역만 클리어, 아니면 전체 클리어
-        bool cursorAfterNewline = (cursorPos > 0 && cursorPos <= d.length() && d[cursorPos - 1] == '\n');
-        bool fastRender = (currentMode == TYPING_MODE && !doFullRefresh && lastCursorY >= 0 && !cursorAfterNewline);
-        if (fastRender) {
-            int clearTopPx = (int)((lastCursorY - (baseFontSize + lineSpacing) * 4) * displayScale);
-            if (clearTopPx < statusBarBottom) clearTopPx = statusBarBottom;
-            display.fillRect(0, clearTopPx, display.width(), display.height() - clearTopPx, WHITE);
+
+        int tailStart = d.lastIndexOf('\n');
+        tailStart = (tailStart < 0) ? 0 : tailStart + 1;
+        int tailLineCount = countWrappedLinesInRange(d, tailStart, d.length(), maxWidth);
+        bool fastTailRender = (currentMode == TYPING_MODE &&
+                               composing.length() == 0 &&
+                               cursorPos == fullText.length() &&
+                               lastRenderedCursorPos == lastRenderedTextLen &&
+                               lastRenderedTextLen >= 0 &&
+                               fullText.length() > lastRenderedTextLen &&
+                               fullText.substring(lastRenderedTextLen).indexOf('\n') < 0 &&
+                               tailStart == lastRenderedTailStart &&
+                               tailLineCount == lastRenderedTailLineCount &&
+                               rtlTextMode == lastRenderedTailRtl &&
+                               !doFullRefresh && !modeChanged);
+
+        int currentY = (int)((display.height() / displayScale) - 25);
+        if (fastTailRender) {
+            // Bottom anchored display: with no wrap, only the lowest visible line changed.
+            int clearTop = (int)((currentY - baseFontSize - lineSpacing + 2) * displayScale);
+            if (clearTop < statusBarBottom) clearTop = statusBarBottom;
+            display.fillRect(0, clearTop, display.width(), display.height() - clearTop, WHITE);
         } else {
+            // Enter or wrapping shifts lines above the cursor, so redraw safely.
             display.fillRect(0, statusBarBottom, display.width(), display.height() - statusBarBottom, WHITE);
         }
 
-        int currentY = (int)((display.height() / displayScale) - 25);
+        bool fastTailDone = false;
         int lastLineEnd = renderEnd;
         for (int i = renderEnd; i >= 0; i--) {
             if (i == 0 || d[i-1] == '\n') {
-                // 커서 위 단락 — 화면에 이미 있으므로 건드리지 않음
-                if (fastRender && i < cursorParaStart) break;
-
                 String para = d.substring(i, lastLineEnd);
                 String lines[40]; 
                 int lineStartIdx[40]; 
@@ -2325,22 +2539,15 @@ for(int i = leftMenuOffset; i < menuCount; i++) {    if (i >= leftMenuOffset + m
                     }
                     if (currentLineStartK < lastLineEnd) visualLineCount++;
                 }
-                // 커서 아래 단락 — Y 위치만 추적하고 렌더 스킵
-                if (fastRender && i > cursorParaStart) {
-                    for (int j = 0; j < visualLineCount && currentY >= STATUS_Y + 10; j++)
-                        currentY -= (baseFontSize + lineSpacing);
-                    lastLineEnd = i - 1;
-                    if (currentY < STATUS_Y + 10) break;
-                    continue;
-                }
                 for (int j = lineCount - 1; j >= 0; j--) {
                     if (currentY > STATUS_Y + 20) {
+                        String displayLine = rtlTextMode ? makeRtlVisualText(lines[j]) : lines[j];
                         int lineDrawX = MARGIN_X;
                         if (rtlTextMode) {
-                            lineDrawX = contentRight - zwMeasureTextWidth(lines[j], false);
+                            lineDrawX = contentRight - zwMeasureTextWidth(displayLine, false);
                             if (lineDrawX < MARGIN_X) lineDrawX = MARGIN_X;
                         }
-                        printCleanText(u8g2_for_adafruit_gfx, lines[j], lineDrawX, currentY, false, contentRight);
+                        printCleanText(u8g2_for_adafruit_gfx, displayLine, lineDrawX, currentY, false, contentRight);
                         
                         int absLineStart = i + lineStartIdx[j];
                         int absLineEnd = (j < lineCount - 1) ? (i + lineStartIdx[j+1]) : lastLineEnd;
@@ -2350,14 +2557,8 @@ for(int i = leftMenuOffset; i < menuCount; i++) {    if (i >= leftMenuOffset + m
                                 int cursorStrLen = targetIdx - absLineStart;
                                 String beforeCursor = para.substring(lineStartIdx[j], lineStartIdx[j] + cursorStrLen);
                                 
-                                int cursorXOffset = 0;
-                                for(int x = 0; x < beforeCursor.length(); ) {
-                                    int cl = zwUtf8CharLen(beforeCursor, x);
-                                    if (cl <= 0) cl = 1;
-                                    uint32_t cp = zwUtf8Codepoint(beforeCursor.c_str() + x, cl);
-                                    cursorXOffset += zwGlyphAdvance(cp, cl, false);
-                                    x += cl;
-                                }
+                                String displayBeforeCursor = rtlTextMode ? makeRtlVisualText(beforeCursor) : beforeCursor;
+                                int cursorXOffset = zwMeasureTextWidth(displayBeforeCursor, false);
                                 
                                 if (currentMode == TYPING_MODE) {
                                     int cursorDrawX = rtlTextMode ? (contentRight - cursorXOffset - 12) : (lineDrawX + cursorXOffset);
@@ -2366,33 +2567,22 @@ for(int i = leftMenuOffset; i < menuCount; i++) {    if (i >= leftMenuOffset + m
                                     bigDisplay.fillRect(cursorDrawX, currentY + 2, 12, 4, BLACK);
                                     lastCursorY = currentY; // 다음 프레임 빠른 렌더용
                                 }
-                                else if (currentMode == SEARCH_MODE && searchQuery.length() > 0) {
-                                    int searchStart = targetIdx - searchQuery.length();
+                                else if (currentMode == SEARCH_MODE && searchQuery.length() > 0 && searchMatchEnd >= 0) {
+                                    int searchStart = searchMatchEnd - searchQuery.length();
                                     
                                     
-                                    if (searchStart >= absLineStart && searchStart < absLineEnd) {
+                                    if (searchStart >= absLineStart && searchMatchEnd <= absLineEnd && searchStart >= 0 &&
+                                        fullText.substring(searchStart, searchMatchEnd) == searchQuery) {
                                         
                                         
                                         int startStrLen = searchStart - absLineStart;
                                         String beforeSearch = para.substring(lineStartIdx[j], lineStartIdx[j] + startStrLen);
-                                        int searchXOffset = 0;
-                                        for(int x = 0; x < beforeSearch.length(); ) {
-                                            int cl = zwUtf8CharLen(beforeSearch, x);
-                                            if (cl <= 0) cl = 1;
-                                            uint32_t cp = zwUtf8Codepoint(beforeSearch.c_str() + x, cl);
-                                            searchXOffset += zwGlyphAdvance(cp, cl, false);
-                                            x += cl;
-                                        }
+                                        String displayBeforeSearch = rtlTextMode ? makeRtlVisualText(beforeSearch) : beforeSearch;
+                                        int searchXOffset = zwMeasureTextWidth(displayBeforeSearch, false);
 
                                         
-                                        int queryWidth = 0;
-                                        for(int x = 0; x < searchQuery.length(); ) {
-                                            int cl = zwUtf8CharLen(searchQuery, x);
-                                            if (cl <= 0) cl = 1;
-                                            uint32_t cp = zwUtf8Codepoint(searchQuery.c_str() + x, cl);
-                                            queryWidth += zwGlyphAdvance(cp, cl, false);
-                                            x += cl;
-                                        }
+                                        String displayQuery = rtlTextMode ? makeRtlVisualText(searchQuery) : searchQuery;
+                                        int queryWidth = zwMeasureTextWidth(displayQuery, false);
 
                                         
                                         int searchDrawX = rtlTextMode ? (contentRight - searchXOffset - queryWidth) : (lineDrawX + searchXOffset);
@@ -2405,7 +2595,7 @@ for(int i = leftMenuOffset; i < menuCount; i++) {    if (i >= leftMenuOffset + m
                                         u8g2_for_adafruit_gfx.setForegroundColor(WHITE);
                                         u8g2_for_adafruit_gfx.setBackgroundColor(BLACK);
                                         
-                                        printDualFont(searchQuery, searchDrawX, currentY);
+                                        printDualFont(displayQuery, searchDrawX, currentY);
 
                                         
                                         u8g2_for_adafruit_gfx.setForegroundColor(BLACK);
@@ -2416,15 +2606,33 @@ for(int i = leftMenuOffset; i < menuCount; i++) {    if (i >= leftMenuOffset + m
                         }
                     }
                     currentY -= (baseFontSize + lineSpacing);
+                    if (fastTailRender) {
+                        fastTailDone = true;
+                        break;
+                    }
                     if (currentY < STATUS_Y + 10) break;
                 }
 
                 lastLineEnd = i - 1;
-                if (currentY < STATUS_Y + 10) break; 
+                if (fastTailDone || currentY < STATUS_Y + 10) break; 
             }
         }
         lastSy = 0;
-        
+
+        if (currentMode == TYPING_MODE && composing.length() == 0) {
+            lastRenderedTextLen = fullText.length();
+            lastRenderedCursorPos = cursorPos;
+            lastRenderedTailStart = fullText.lastIndexOf('\n');
+            lastRenderedTailStart = (lastRenderedTailStart < 0) ? 0 : lastRenderedTailStart + 1;
+            lastRenderedTailLineCount = countWrappedLinesInRange(fullText, lastRenderedTailStart, fullText.length(), maxWidth);
+            lastRenderedTailRtl = rtlTextMode;
+        } else {
+            lastRenderedTextLen = -1;
+            lastRenderedCursorPos = -1;
+            lastRenderedTailStart = -1;
+            lastRenderedTailLineCount = -1;
+        }
+
         if (currentMode == SEARCH_MODE) {
             int boxW = 360; int boxH = 44;
             int boxX = (display.width() / UI_SCALE - boxW) / 2;
@@ -2432,10 +2640,10 @@ for(int i = leftMenuOffset; i < menuCount; i++) {    if (i >= leftMenuOffset + m
             display.fillRect((int)(boxX * UI_SCALE), (int)(boxY * UI_SCALE), (int)(boxW * UI_SCALE), (int)(boxH * UI_SCALE), BLACK);
             display.fillRect((int)((boxX + 3) * UI_SCALE), (int)((boxY + 3) * UI_SCALE), (int)((boxW - 6) * UI_SCALE), (int)((boxH - 6) * UI_SCALE), WHITE);
 
-            String dispSearch = rtlTextMode ? searchQuery + " :Search" : "Search: " + searchQuery;
+            String dispSearch = rtlTextMode ? makeRtlVisualText(searchQuery) + " :Search" : "Search: " + searchQuery;
             if (cho != -1 || jung != -1) {
                 String composingSearch = ((cho != -1 && jung != -1) ? makeKorStr(cho, jung, jong) : (cho != -1 ? String(choStrs[cho]) : String(jungStrs[jung])));
-                if (rtlTextMode) dispSearch = composingSearch + dispSearch;
+                if (rtlTextMode) dispSearch = makeRtlVisualText(composingSearch) + dispSearch;
                 else dispSearch += composingSearch;
             }
             dispSearch += "_";
