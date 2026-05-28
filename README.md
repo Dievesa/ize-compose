@@ -34,7 +34,9 @@ Built from scratch, Ize Compose transforms the Zerowriter Ink keyboard's serial 
 
 **Keyboard & Language**
 - 92 keyboard layouts selectable from the system menu
-- Two independent layout slots: one for English (QWERTY or Dvorak), one for a second language
+- Two independent layout slots: an English slot (QWERTY or Dvorak) and a selected-language slot
+- Switch between the English slot and the selected-language slot with `Ctrl+Space`
+- `Alt` provides dead-key / character-conversion input for supported layouts
 - 12 script composition engines: Korean, Arabic, Indic scripts, Thai, Myanmar, Khmer, Lao, Tibetan, Sinhala, Ethiopic, Japanese, Hebrew
 - RTL layout support: Arabic, Hebrew, Kurdish (Arabic), Pashto, Persian, Urdu
 - Arabic-script text is saved as logical Unicode text for compatibility on other devices
@@ -142,24 +144,19 @@ Without the required `.bin` font files, document text may be stored correctly bu
 - [PlatformIO](https://platformio.org/) (VS Code extension or CLI)
 - Zerowriter Ink (Inkplate 5 V2) with SD card
 
-### Initial build and flash via USB-C
+### Initial installation of v1.1.0 via USB-C
 
-> **Required for v1.1.0:** Install this release once over USB. It introduces the OTA-compatible flash partition layout. After that initial installation, later firmware releases can be installed over WiFi.
+> **Required when upgrading from v1.0.0 or earlier:** v1.1.0 changes the flash partition layout to enable OTA. It must be installed once via USB-C. After that initial installation, later firmware releases can be installed over WiFi.
 
 1. Open the Zerowriter Ink enclosure.
 2. Disconnect the keyboard cable.
 3. Connect the device to your computer using a USB-C cable.
-4. Build and upload the firmware:
-
-```bash
-git clone https://github.com/Dievesa/ize-compose.git
-cd ize-compose
-pio run --target upload
-```
-
-5. After the upload completes, disconnect the USB-C cable.
+4. Install the v1.1.0 USB build with its OTA-compatible partition layout.
+5. After installation completes, disconnect the USB-C cable.
 6. Reconnect the keyboard cable and close the device.
 7. Insert the prepared SD card and start the device.
+
+The standalone firmware file attached to a release is intended for web-based updates after the OTA-compatible partition layout has already been installed.
 
 ### SD card setup
 1. Format SD card as FAT32.
@@ -171,12 +168,12 @@ pio run --target upload
 
 Available after v1.1.0 has been installed once via USB.
 
-1. Build the new firmware and rename the generated binary to `izefirmware.bin`.
+1. Download `izefirmware.bin` from the latest GitHub Release.
 2. On the device, open the system menu and select **Update**.
 3. Enter a 4-digit PIN on the device, confirm it with Enter, and keep the PIN shown on screen.
 4. Connect a PC or phone to the WiFi network shown on the device update screen.
 5. Open `192.168.4.1` in a browser.
-6. Select `izefirmware.bin`, enter the same 4-digit PIN, and upload it.
+6. Select the downloaded `izefirmware.bin`, enter the same 4-digit PIN, and upload it.
 7. The device installs the firmware and reboots when the update is complete.
 
 The same update page can also upload supported font resource files and `initial.png`.
@@ -187,12 +184,12 @@ The same update page can also upload supported font resource files and `initial.
 
 | Shortcut | Action |
 |---|---|
-| Ctrl+Space | Toggle Korean / English mode |
+| Ctrl+Space | Switch between the English slot (QWERTY/Dvorak) and the selected-language slot |
 | Ctrl+L | Sleep (shows boot image) |
 | Ctrl+F | Text search |
 | Ctrl+C | Copy all text to internal clipboard |
 | Ctrl+V | Paste internal clipboard |
-| Alt (accent cycling) | Cycle diacritic variants for last character |
+| Alt | Dead-key / character-conversion input for supported layouts |
 
 ---
 
