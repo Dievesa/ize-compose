@@ -44,7 +44,7 @@ Built from scratch, Ize Compose transforms the Zerowriter Ink keyboard's serial 
 - Arabic-script text is saved as logical Unicode text for compatibility on other devices
 
 **Files**
-- Saves and loads `.txt` files on SD card (`/ize_compose/`)
+- Saves and loads `.txt` files on SD card (root directory)
 - File browser (up to 65 files)
 - WiFi (AP mode) for uploading/downloading text files and web-based firmware updates (OTA)
 
