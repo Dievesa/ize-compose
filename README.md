@@ -1,12 +1,11 @@
-> [!WARNING]
-> **Temporary notice:** The current release > [!WARNING]
-> **Temporary notice:** Several issues were identified shortly after the current release was posted.  
-> I apologize, but as I work during the week, I am unable to give the code the careful review and testing it requires until this weekend.  
-> Please do not install or update the firmware until a corrected release is posted.
-
-
- ### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
 # Ize Compose
+
+### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
+
+> [!NOTE]
+> **v1.1.0 is available.** This release enables web-based firmware updates (OTA) on Zerowriter Ink.  
+> Because it changes the flash partition layout, **v1.1.0 must be installed once via USB**. Future firmware updates can then be installed through the device's web update page.
+
 
 Multilingual writing firmware for the [Zerowriter Ink](https://www.zerowriter.org/) (Inkplate 5 V2). Started as a Korean-input firmware, now supports 92 keyboard layouts across dozens of scripts.
 
@@ -28,7 +27,7 @@ Built from scratch, Ize Compose transforms the Zerowriter Ink keyboard's serial 
 - Plain-text editing with cursor navigation
 - Phonetic Korean composition (cho/jung/jong jamo assembly)
 - Latin accent cycling (e.g., a → á → â → ã → ...)
-- Right-to-left (RTL) text mode for Arabic-script layouts
+- Right-to-left (RTL) display for Arabic-script and Hebrew layouts
 - Text search (Ctrl+F)
 - Copy / paste (Ctrl+C / Ctrl+V)
 - Word and character count (3 display modes)
@@ -38,14 +37,15 @@ Built from scratch, Ize Compose transforms the Zerowriter Ink keyboard's serial 
 - Two independent layout slots: one for English (QWERTY or Dvorak), one for a second language
 - 12 script composition engines: Korean, Arabic, Indic scripts, Thai, Myanmar, Khmer, Lao, Tibetan, Sinhala, Ethiopic, Japanese, Hebrew
 - RTL layout support: Arabic, Hebrew, Kurdish (Arabic), Pashto, Persian, Urdu
+- Arabic-script text is saved as logical Unicode text for compatibility on other devices
 
 **Files**
 - Saves and loads `.txt` files on SD card (`/ize_compose/`)
 - File browser (up to 65 files)
-- WiFi (AP mode) for uploading/downloading text and firmware OTA via browser
+- WiFi (AP mode) for uploading/downloading text files and web-based firmware updates (OTA)
 
 **Display**
-- Partial screen update for fast typing feedback
+- Partial screen update for responsive typing feedback
 - Configurable full-refresh threshold
 - Boot/sleep image loaded from `/ize_compose/initial.png` on SD card
 - Sleep mode: Ctrl+L or sleep button; wake with wake button
@@ -67,22 +67,23 @@ Dvorak, QWERTY, 한국어, Shqip, العربية, Հայերեն, Deutsch (AT/DE
 
 ## Font Files
 
-Latin is embedded in the firmware. All other scripts are loaded from SD card at boot.
+Writing fonts are loaded from the SD card at boot. The firmware keeps only a minimal built-in fallback font for startup and error messages when an SD font is unavailable.
 
 Place the following files in `/ize_compose/hwalja/` on the SD card:
 
 | File | Scripts covered |
 |---|---|
+| `hwalja_latin.bin` | Latin and Latin extended characters |
 | `hwalja_hangul.bin` | Korean (Hangul syllables) |
 | `hwalja_jamo.bin` | Korean (Jamo, composition glyphs) |
 | `hwalja_jp.bin` | Japanese (Hiragana, Katakana) |
 | `hwalja_greek_cyrillic.bin` | Greek, Cyrillic |
-| `hwalja_arabic.bin` | Arabic, Persian, Urdu |
+| `hwalja_arabic.bin` | Arabic, Persian, Urdu, and related Arabic-script layouts |
 | `hwalja_indic.bin` | Devanagari, Bengali, Gujarati, Kannada, Malayalam, Punjabi, Tamil, Telugu, Sinhala |
 | `hwalja_sea.bin` | Thai, Khmer, Lao, Myanmar, Tibetan |
 | `hwalja_misc.bin` | Ethiopic, Georgian, Armenian, and others |
 
-Without these files the device still works, but only Latin text is displayed correctly.
+Without the required `.bin` font files, document text may be stored correctly but may not display correctly on the device.
 
 ---
 
@@ -120,18 +121,18 @@ Without these files the device still works, but only Latin text is displayed cor
 | `-DBOARD_HAS_PSRAM` | Declares PSRAM presence to ESP-IDF |
 | `-mfix-esp32-psram-cache-issue` | Workaround for ESP32 PSRAM cache bug (older silicon) |
 | `-DSCREEN_WIDTH=800` / `-DSCREEN_HEIGHT=600` | Display resolution constants |
-| `-O2` + `build_unflags = -Os` | Speed optimization; overrides PlatformIO's default size optimization |
+| `-Os` | Size optimization required to preserve room for dual-slot OTA firmware updates |
 | `-D CORE_DEBUG_LEVEL=0` | Suppresses all serial debug output |
 
 ### Flash / partition settings
 
 | Item | Value |
 |---|---|
-| Partition table | `huge_app.csv` (maximizes app partition) |
+| Partition table | `min_spiffs.csv` (dual-slot OTA layout for 4 MB flash) |
 | Flash speed | 80 MHz |
 | Flash mode | QIO (quad I/O) |
 
-> `huge_app.csv` is a built-in partition table provided by the PlatformIO espressif32 platform. No manual file is needed.
+> `min_spiffs.csv` is a built-in partition table provided by the PlatformIO espressif32 platform. It provides the two application slots required for OTA updates.
 
 ---
 
@@ -142,7 +143,8 @@ Without these files the device still works, but only Latin text is displayed cor
 - Zerowriter Ink (Inkplate 5 V2) with SD card
 
 ### Initial build and flash via USB-C
-### Initial build and flash via USB-C
+
+> **Required for v1.1.0:** Install this release once over USB. It introduces the OTA-compatible flash partition layout. After that initial installation, later firmware releases can be installed over WiFi.
 
 1. Open the Zerowriter Ink enclosure.
 2. Disconnect the keyboard cable.
@@ -162,14 +164,22 @@ pio run --target upload
 ### SD card setup
 1. Format SD card as FAT32.
 2. Create the folder `/ize_compose/hwalja/`.
-3. Copy the `hwalja_*.bin` font files into `/ize_compose/hwalja/`.
+3. Copy all required `hwalja_*.bin` font files, including `hwalja_latin.bin`, into `/ize_compose/hwalja/`.
 4. (Optional) Place `initial.png` (800×600 PNG) in `/ize_compose/` for the sleep/boot image.
 
 ### Firmware OTA update (WiFi)
-1. Open the system menu → Network → WiFi.
-2. Connect to the `IZE_COMPOSE` access point from a PC or phone.
-3. Navigate to `192.168.4.1` in a browser.
-4. Upload a new `.bin` firmware file.
+
+Available after v1.1.0 has been installed once via USB.
+
+1. Build the new firmware and rename the generated binary to `izefirmware.bin`.
+2. On the device, open the system menu and select **Update**.
+3. Enter a 4-digit PIN on the device, confirm it with Enter, and keep the PIN shown on screen.
+4. Connect a PC or phone to the WiFi network shown on the device update screen.
+5. Open `192.168.4.1` in a browser.
+6. Select `izefirmware.bin`, enter the same 4-digit PIN, and upload it.
+7. The device installs the firmware and reboots when the update is complete.
+
+The same update page can also upload supported font resource files and `initial.png`.
 
 ---
 
@@ -194,7 +204,7 @@ src/
   jado.h                — keyboard layout definitions and keymaps (92 layouts)
   jeong_eum.h           — Korean composition engine and script engine types
   insoe.h               — text rendering, font selection
-  EmbeddedLatinFont.h   — Latin font baked into firmware
+  EmbeddedLatinFont.h   — legacy embedded Latin font source (not used for the writing font in v1.1.0)
   PsramAssets.h         — PSRAM asset loading helpers
   hwalja_*.bin          — font binary files (copy to SD card, not compiled in)
 
@@ -216,6 +226,7 @@ platformio.ini          — PlatformIO build config
 - Only `.txt` files; no formatting.
 - Single document open at a time.
 - Writing mode is unavailable while WiFi or BLE transfer mode is active.
+- Arabic-script text is saved as logical Unicode, but on-device joining appearance depends on the supplied font glyphs.
 - The sleep image must be exactly 800×600 pixels; other sizes are not handled.
 
 ---
