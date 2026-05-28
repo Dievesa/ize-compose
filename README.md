@@ -1,6 +1,7 @@
 > [!WARNING]
-> **Temporary notice:** The current release is undergoing fixes due to an update and several early catched issue.  
-> Please do not install or update the firmware until a corrected release is posted.
+> **Temporary notice:** The current release is being corrected after several issues were identified during early testing.  
+> As I am unable to properly review and test the firmware during the workweek, I will post a corrected release after completing a careful review this weekend.  
+> Please do not install or update the firmware until then. I apologize for the inconvenience.
 
 
  ### Iźe Compose — Multilingual firmware for focused writing on e-paper hardware.
