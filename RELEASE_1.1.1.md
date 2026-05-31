@@ -5,6 +5,19 @@ Release date: 2026-05-31
 This is a maintenance release focused on Arabic-script rendering and a cleaner
 install package layout.
 
+## Hardware Scope
+
+This release is currently intended for **Zerowriter Ink only**.
+
+Even if another ESP32 e-ink device has a display and ESP32 specification that
+look compatible, this firmware is not yet a generic target for that hardware.
+The display path, board flags, PSRAM assumptions, SD card layout, and especially
+the keyboard input path were verified for Zerowriter Ink.
+
+If the keyboard hardware, keyboard controller, wiring, or input method changes,
+the input-handling code must be modified and reverified before the firmware is
+used on that device.
+
 ## Highlights
 
 - Improved Arabic-script font rendering.

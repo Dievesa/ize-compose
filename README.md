@@ -6,6 +6,13 @@ Current release: **v1.1.1**
 
 v1.1.1 improves Arabic-script connected glyph rendering and adds a clean install package layout under `Ize-compose/`.
 
+> **Hardware scope warning**
+>
+> This repository is currently released for **Zerowriter Ink only**.
+> Even if another device has an ESP32 and an e-ink display with matching or similar specifications, this code and firmware should not be treated as a general Inkplate/ESP32 writing firmware yet.
+>
+> In particular, the keyboard input path is written for the current Zerowriter Ink hardware configuration. If the keyboard, keyboard controller, wiring, or input method changes, the input-handling code must be reviewed and modified before use.
+
 ---
 
 ## Supported Device
@@ -101,7 +108,7 @@ Without these files the device still works, but only the built-in Latin fallback
 | CPU clock | 240 MHz |
 | Upload / monitor speed | 921600 baud |
 
-> `board = esp32dev` is used with manual build flags rather than a dedicated Inkplate board definition. This firmware will not work on a generic ESP32 dev board — the flags and PSRAM are specific to the Inkplate 5 V2 hardware.
+> `board = esp32dev` is used with manual build flags rather than a dedicated Inkplate board definition. This firmware will not work on a generic ESP32 dev board. The flags, PSRAM assumptions, display path, and keyboard input code are specific to the Zerowriter Ink / Inkplate 5 V2 hardware.
 
 ### Libraries
 
