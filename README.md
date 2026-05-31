@@ -61,7 +61,7 @@ Dvorak, QWERTY, 한국어, Shqip, العربية, Հայերեն, Deutsch (AT/DE
 
 ## Font Files
 
-Latin is embedded in the firmware. All other scripts are loaded from SD card at boot.
+The firmware has a built-in Latin fallback font. The full Latin font and all non-Latin script fonts are loaded from SD card at boot when the font files are present.
 
 In the v1.1.1 install package, these files are already arranged under:
 
@@ -73,6 +73,7 @@ Copy the contents of `Ize-compose/sdcard/` to the root of the SD card. The devic
 |---|---|
 | `hwalja_hangul.bin` | Korean (Hangul syllables) |
 | `hwalja_jamo.bin` | Korean (Jamo, composition glyphs) |
+| `hwalja_latin.bin` | Latin and Latin extended |
 | `hwalja_jp.bin` | Japanese (Hiragana, Katakana) |
 | `hwalja_greek_cyrillic.bin` | Greek, Cyrillic |
 | `hwalja_arabic.bin` | Arabic, Persian, Urdu, Pashto, Kurdish Arabic |
@@ -80,7 +81,7 @@ Copy the contents of `Ize-compose/sdcard/` to the root of the SD card. The devic
 | `hwalja_sea.bin` | Thai, Khmer, Lao, Myanmar, Tibetan |
 | `hwalja_misc.bin` | Ethiopic, Georgian, Armenian, and others |
 
-Without these files the device still works, but only Latin text is displayed correctly.
+Without these files the device still works, but only the built-in Latin fallback font is available.
 
 ### v1.1.1 Arabic font update
 
@@ -207,7 +208,6 @@ src/
   jado.h                — keyboard layout definitions and keymaps (92 layouts)
   jeong_eum.h           — Korean composition engine and script engine types
   insoe.h               — text rendering, font selection
-  EmbeddedLatinFont.h   — Latin font baked into firmware
   PsramAssets.h         — PSRAM asset loading helpers
 
 lib/
@@ -223,6 +223,7 @@ build/
 
 others/
   *.ttf                 — original/reference font files
+  reference-headers/    — unused generated/reference headers, not compiled
 
 platformio.ini          — PlatformIO build config
 ```
