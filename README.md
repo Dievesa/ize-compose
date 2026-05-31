@@ -2,6 +2,10 @@
 
 Multilingual writing firmware for the [Zerowriter Ink](https://www.zerowriter.org/) (Inkplate 5 V2). Started as a Korean-input firmware, now supports 92 keyboard layouts across dozens of scripts.
 
+Current release: **v1.1.1**
+
+v1.1.1 improves Arabic-script connected glyph rendering and adds a clean install package layout under `Ize-compose/`.
+
 ---
 
 ## Supported Device
@@ -59,7 +63,11 @@ Dvorak, QWERTY, 한국어, Shqip, العربية, Հայերեն, Deutsch (AT/DE
 
 Latin is embedded in the firmware. All other scripts are loaded from SD card at boot.
 
-Place the following files in `/ize_compose/hwalja/` on the SD card:
+In the v1.1.1 install package, these files are already arranged under:
+
+`Ize-compose/sdcard/ize_compose/hwalja/`
+
+Copy the contents of `Ize-compose/sdcard/` to the root of the SD card. The device expects the font files in `/ize_compose/hwalja/`.
 
 | File | Scripts covered |
 |---|---|
@@ -67,12 +75,16 @@ Place the following files in `/ize_compose/hwalja/` on the SD card:
 | `hwalja_jamo.bin` | Korean (Jamo, composition glyphs) |
 | `hwalja_jp.bin` | Japanese (Hiragana, Katakana) |
 | `hwalja_greek_cyrillic.bin` | Greek, Cyrillic |
-| `hwalja_arabic.bin` | Arabic, Persian, Urdu |
+| `hwalja_arabic.bin` | Arabic, Persian, Urdu, Pashto, Kurdish Arabic |
 | `hwalja_indic.bin` | Devanagari, Bengali, Gujarati, Kannada, Malayalam, Punjabi, Tamil, Telugu, Sinhala |
 | `hwalja_sea.bin` | Thai, Khmer, Lao, Myanmar, Tibetan |
 | `hwalja_misc.bin` | Ethiopic, Georgian, Armenian, and others |
 
 Without these files the device still works, but only Latin text is displayed correctly.
+
+### v1.1.1 Arabic font update
+
+`hwalja_arabic.bin` was regenerated in v1.1.1 so Arabic presentation forms use the full 8-pixel cell width. This reduces unwanted left/right blank space and improves visual connection between glyphs that should join.
 
 ---
 
@@ -110,18 +122,18 @@ Without these files the device still works, but only Latin text is displayed cor
 | `-DBOARD_HAS_PSRAM` | Declares PSRAM presence to ESP-IDF |
 | `-mfix-esp32-psram-cache-issue` | Workaround for ESP32 PSRAM cache bug (older silicon) |
 | `-DSCREEN_WIDTH=800` / `-DSCREEN_HEIGHT=600` | Display resolution constants |
-| `-O2` + `build_unflags = -Os` | Speed optimization; overrides PlatformIO's default size optimization |
+| `-Os` | Size optimization for OTA-safe firmware size |
 | `-D CORE_DEBUG_LEVEL=0` | Suppresses all serial debug output |
 
 ### Flash / partition settings
 
 | Item | Value |
 |---|---|
-| Partition table | `huge_app.csv` (maximizes app partition) |
+| Partition table | `min_spiffs.csv` |
 | Flash speed | 80 MHz |
 | Flash mode | QIO (quad I/O) |
 
-> `huge_app.csv` is a built-in partition table provided by the PlatformIO espressif32 platform. No manual file is needed.
+> The clean v1.1.1 package includes `min_spiffs.csv` at the project root so the build does not depend on a hidden PlatformIO package path.
 
 ---
 
@@ -131,7 +143,15 @@ Without these files the device still works, but only Latin text is displayed cor
 - [PlatformIO](https://platformio.org/) (VS Code extension or CLI)
 - Zerowriter Ink (Inkplate 5 V2) with SD card
 
-### Build and flash
+### Recommended release install
+
+Download or open the `Ize-compose/` package.
+
+1. Upload `Ize-compose/firmware/izefirmware.bin` as the firmware image.
+2. Copy the contents of `Ize-compose/sdcard/` to the SD card root.
+3. Confirm that the SD card contains `/ize_compose/initial.png` and `/ize_compose/hwalja/*.bin`.
+
+### Build and flash from source
 ```bash
 git clone <this repo>
 cd <repo>
@@ -140,9 +160,9 @@ pio run --target upload
 
 ### SD card setup
 1. Format SD card as FAT32.
-2. Create the folder `/ize_compose/hwalja/`.
+2. Copy the contents of `Ize-compose/sdcard/` to the SD card root, or manually create `/ize_compose/hwalja/`.
 3. Copy the `hwalja_*.bin` font files into `/ize_compose/hwalja/`.
-4. (Optional) Place `initial.png` (800×600 PNG) in `/ize_compose/` for the sleep/boot image.
+4. Place `initial.png` (800×600 PNG) in `/ize_compose/` for the sleep/boot image.
 
 ### Firmware OTA update (WiFi)
 1. Open the system menu → Network → WiFi.
@@ -168,6 +188,20 @@ pio run --target upload
 ## Repository Structure
 
 ```
+Ize-compose/
+  firmware/
+    izefirmware.bin      — release firmware image
+  sdcard/
+    ize_compose/
+      initial.png        — boot/sleep image
+      hwalja/
+        hwalja_*.bin     — font files to copy to SD card
+  src/                   — clean PlatformIO firmware source
+  lib/InkplateLibrary/   — local Inkplate driver required for build
+  others/                — font sources and helper tools, not compiled
+  INSTALL.md             — install/build notes
+  RELEASE_1.1.1.md       — v1.1.1 release notes
+
 src/
   IZEcompose.ino        — main firmware
   jado.h                — keyboard layout definitions and keymaps (92 layouts)
@@ -175,18 +209,20 @@ src/
   insoe.h               — text rendering, font selection
   EmbeddedLatinFont.h   — Latin font baked into firmware
   PsramAssets.h         — PSRAM asset loading helpers
-  hwalja_*.bin          — font binary files (copy to SD card, not compiled in)
 
 lib/
   InkplateLibrary/      — Inkplate driver (local copy)
 
 tools/
-  make_fonts.py         — script used to build hwalja_*.bin from BDF sources
+  make_fonts.py         — script used to build hwalja_*.bin from font sources
   u8g2/bdfconv.exe      — BDF font converter (used by make_fonts.py)
 
 build/
   fontbuild*/           — intermediate font build artifacts
   noto_fonts/           — source Noto font TTFs used for font building
+
+others/
+  *.ttf                 — original/reference font files
 
 platformio.ini          — PlatformIO build config
 ```
