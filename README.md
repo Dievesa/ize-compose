@@ -1,11 +1,14 @@
 # Ize Compose
 
-> **Repository moved**
+> Repository moved
 >
-> This repository is no longer updated. Future updates will be maintained at
-> [ize-studio/ize-compose](https://github.com/ize-studio/ize-compose).
+> This repository is no longer updated. Future updates will be maintained at ize-studio/ize-compose.
 
-Multilingual writing firmware for the [Zerowriter Ink](https://www.zerowriter.org/) (Inkplate 5 V2). Started as a Korean-input firmware, now supports 92 keyboard layouts across dozens of scripts.
+Ize Compose is a community multilingual firmware project for the Zerowriter Ink (Inkplate 5 V2).
+
+It explores Korean, UTF-8, and global text input on the ESP32-based Ink platform. Started as a Korean-input firmware, it now supports 92 keyboard layouts across dozens of scripts.
+
+This is an independent personal/community firmware, not an official Zerowriter release.
 
 Current release: **v1.1.1**
 
