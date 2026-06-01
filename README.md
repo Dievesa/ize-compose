@@ -1,8 +1,9 @@
+
 # Ize Compose
 
 > Repository moved
 >
-> This repository is no longer updated. Future updates will be maintained at ize-studio/ize-compose.
+> This repository is no longer updated. Future updates will be maintained at [ize-studio/ize-compose](https://github.com/ize-studio/ize-compose).
 
 Ize Compose is a community multilingual firmware project for the Zerowriter Ink (Inkplate 5 V2).
 
