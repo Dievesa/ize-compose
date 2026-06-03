@@ -265,3 +265,9 @@ platformio.ini          — PlatformIO build config
 - [SdFat](https://github.com/greiman/SdFat) — Bill Greiman
 - [Noto Fonts](https://fonts.google.com/noto) — Google (used for font building; license: SIL OFL 1.1)
 - [Zerowriter Ink](https://www.zerowriter.org/) — original hardware
+
+## Support
+
+I build strange little writing tools.
+If you enjoyed this project, coffee support is welcome.
+Ko-fi: https://ko-fi.com/dievesa
